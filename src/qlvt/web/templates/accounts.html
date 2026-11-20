@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Tài khoản đăng nhập — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Tài khoản đăng nhập{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+    <div class="toolbar-left">
+        {% if available_employees %}
+        <button type="button" class="btn btn-primary" onclick="openAccModal()">+ Cấp tài khoản mới</button>
+        {% else %}
+        <button type="button" class="btn btn-primary" disabled title="Tất cả nhân viên đang làm việc đều đã có tài khoản">+ Cấp tài khoản mới</button>
+        {% endif %}
+        <button type="button" class="btn" id="btnAccPassword" onclick="openPasswordModal()" disabled
+            title="Chọn một nhân viên đã có tài khoản để đổi mật khẩu">
+            Đổi mật khẩu
+        </button>
+        <form method="post" action="{{ url_for('delete_account_route') }}" id="accDeleteForm" style="display:inline;">
+            <input type="hidden" name="login_name" id="del_login_name">
+            <input type="hidden" name="manv" id="del_manv">
+            <button type="submit" class="btn btn-danger-ghost" id="btnAccDelete" disabled>Thu hồi tài khoản</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Mã NV</th>
+                    <th>Họ và tên</th>
+                    <th>Tên đăng nhập</th>
+                    <th>Vai trò</th>
+                    <th style="width: 190px;">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in accounts %}
+                {% set is_self = row.LoginName and (row.LoginName|lower == current_user.login_name|lower) %}
+                <tr class="selectable-row acc-row" style="{{ 'opacity: 0.65;' if row.TrangThaiXoa else '' }}"
+                    data-manv="{{ row.MANV }}" data-hoten="{{ row.HOTEN }}"
+                    data-login="{{ row.LoginName or '' }}"
+                    data-has-acc="{{ '1' if row.DaCoTaiKhoan else '0' }}"
+                    data-is-self="{{ '1' if is_self else '0' }}"
+                    onclick="selectAccRow(this)"
+                    ondblclick="selectAccRow(this); if (this.dataset.hasAcc === '1') openPasswordModal();">
+                    <td><strong>#{{ row.MANV }}</strong></td>
+                    <td>
+                        <strong>{{ row.HOTEN }}</strong>
+                        {% if is_self %}
+                        <span class="pill pill-gray" style="margin-left: 0.3rem;">Đang đăng nhập</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.LoginName or '—' }}</td>
+                    <td>
+                        {% if row.RoleName == 'Admin' %}
+                        <span class="role-tag role-admin">Quản trị viên</span>
+                        {% elif row.RoleName %}
+                        <span class="role-tag role-staff">Nhân viên</span>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.TrangThaiXoa %}
+                        <span class="pill pill-red" title="Nhân viên đã nghỉ việc nên tài khoản đã được thu hồi">Đã nghỉ việc (Đã thu hồi TK)</span>
+                        {% elif row.DaCoTaiKhoan %}
+                        <span class="pill pill-green">Đang hoạt động</span>
+                        {% else %}
+                        <span class="pill pill-gray">Chưa cấp tài khoản</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if available_employees %}
+<dialog id="accModal" class="modal">
+    <form method="post" action="{{ url_for('create_account_route') }}" id="accForm" novalidate>
+        <div class="modal-header">
+            <h3>Cấp tài khoản đăng nhập</h3>
+            <button type="button" class="btn btn-sm" onclick="document.getElementById('accModal').close()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="manv">
+                    <span>Nhân viên</span>
+                    <span class="label-meta">Đang làm việc, chưa có tài khoản</span>
+                </label>
+                <select id="manv" name="manv" onchange="syncSuggestedLoginName()" required>
+                    {% for emp in available_employees %}
+                    <option value="{{ emp.MANV }}">{{ emp.HOTEN }} (Mã NV: {{ emp.MANV }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" id="grp_login_name">
+                <label for="login_name">
+                    <span>Tên đăng nhập</span>
+                    <span class="label-meta">Gợi ý theo NV + Mã NV (có thể sửa)</span>
+                </label>
+                <input type="text" id="login_name" name="login_name" maxlength="50" required placeholder="Ví dụ: nv3">
+                <div class="field-error" id="err_login_name"></div>
+            </div>
+
+            <div class="form-group" id="grp_password">
+                <label for="password">
+                    <span>Mật khẩu khởi tạo</span>
+                    <span class="label-meta">Tối thiểu 3 ký tự</span>
+                </label>
+                <input type="password" id="password" name="password" required placeholder="Nhập mật khẩu">
+                <div class="field-error" id="err_password"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="role">
+                    <span>Nhóm phân quyền</span>
+                </label>
+                <select id="role" name="role" required>
+                    <option value="NhanVien">Nhân viên (Danh mục, Nghiệp vụ kho &amp; Báo cáo)</option>
+                    <option value="Admin">Quản trị viên (Toàn quyền hệ thống, Tài khoản &amp; Sao lưu)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="document.getElementById('accModal').close()">Hủy</button>
+            <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}
+
+<dialog id="accPasswordModal" class="modal">
+    <form method="post" action="{{ url_for('change_password_route') }}" id="accPasswordForm" novalidate>
+        <div class="modal-header">
+            <h3>Đổi mật khẩu tài khoản</h3>
+            <button type="button" class="btn btn-sm" onclick="document.getElementById('accPasswordModal').close()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label><span>Nhân viên</span></label>
+                    <input type="text" id="pwd_emp_display" readonly>
+                </div>
+                <div class="form-group">
+                    <label><span>Tên đăng nhập</span></label>
+                    <input type="text" id="pwd_login_name" name="login_name" readonly>
+                </div>
+            </div>
+
+            <div class="form-group" id="grp_new_password">
+                <label for="new_password">
+                    <span>Mật khẩu mới</span>
+                    <span class="label-meta">Tối thiểu 3 ký tự</span>
+                </label>
+                <input type="password" id="new_password" name="new_password" required placeholder="Nhập mật khẩu mới">
+                <div class="field-error" id="err_new_password"></div>
+            </div>
+
+            <div class="form-group" id="grp_confirm_password" style="margin-bottom: 0;">
+                <label for="confirm_password">
+                    <span>Xác nhận mật khẩu mới</span>
+                    <span class="label-meta">Nhập lại khớp mật khẩu trên</span>
+                </label>
+                <input type="password" id="confirm_password" name="confirm_password" required placeholder="Nhập lại mật khẩu mới">
+                <div class="field-error" id="err_confirm_password"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="document.getElementById('accPasswordModal').close()">Hủy</button>
+            <button type="submit" class="btn btn-primary">Lưu mật khẩu mới</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const existingLogins = new Set([
+        {% for row in accounts %}{% if row.LoginName %}{{ row.LoginName|lower|tojson }},{% endif %}{% endfor %}
+    ]);
+
+    let selectedAccRow = null;
+
+    function selectAccRow(row) {
+        document.querySelectorAll('tr.acc-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+        selectedAccRow = row;
+        if (!row) return;
+        row.classList.add('is-selected');
+        saveRowSelection(row, 'manv');
+
+        const d = row.dataset;
+        const pwdBtn = document.getElementById('btnAccPassword');
+        const delForm = document.getElementById('accDeleteForm');
+        const delBtn = document.getElementById('btnAccDelete');
+        document.getElementById('del_login_name').value = d.login;
+        document.getElementById('del_manv').value = d.manv;
+
+        if (d.hasAcc === '1') {
+            pwdBtn.disabled = false;
+            pwdBtn.title = 'Đổi mật khẩu cho tài khoản "' + d.login + '" (' + d.hoten + ')';
+        } else {
+            pwdBtn.disabled = true;
+            pwdBtn.title = 'Nhân viên này chưa được cấp tài khoản';
+        }
+
+        if (d.hasAcc === '1' && d.isSelf !== '1') {
+            delForm.dataset.confirmTitle = 'Xác nhận thu hồi tài khoản';
+            delForm.dataset.confirmBtn = 'Thu hồi tài khoản';
+            delForm.dataset.confirm = 'Bạn có chắc chắn muốn thu hồi tài khoản đăng nhập "' + d.login + '" của ' + d.hoten + ' không?';
+            delForm.dataset.confirmHint = 'Lưu ý: Sau khi thu hồi, nhân viên này sẽ không thể đăng nhập cho đến khi được cấp lại tài khoản mới.';
+            delBtn.disabled = false;
+            delBtn.className = 'btn btn-danger-ghost';
+            delBtn.title = 'Thu hồi tài khoản ' + d.login;
+        } else {
+            delForm.removeAttribute('data-confirm');
+            delBtn.disabled = true;
+            delBtn.className = 'btn';
+            delBtn.title = d.isSelf === '1'
+                ? 'Không thể thu hồi tài khoản đang đăng nhập'
+                : 'Nhân viên này chưa được cấp tài khoản';
+        }
+    }
+
+    restoreRowSelection(selectAccRow, 'manv');
+
+    function validateLoginName() {
+        const el = document.getElementById('login_name');
+        if (!el) return true;
+        const val = el.value.trim();
+        if (!val) {
+            return setFieldError('grp_login_name', 'err_login_name', 'Vui lòng nhập tên đăng nhập.');
+        }
+        if (!/^[A-Za-z0-9_]{2,50}$/.test(val)) {
+            return setFieldError('grp_login_name', 'err_login_name', 'Chỉ gồm chữ cái không dấu, chữ số hoặc dấu gạch dưới (từ 2 ký tự).');
+        }
+        if (existingLogins.has(val.toLowerCase())) {
+            return setFieldError('grp_login_name', 'err_login_name', 'Tên đăng nhập "' + val + '" đã tồn tại trên hệ thống.');
+        }
+        return setFieldError('grp_login_name', 'err_login_name', '');
+    }
+
+    function validatePassword() {
+        const el = document.getElementById('password');
+        if (!el) return true;
+        const val = el.value;
+        if (!val || val.length < 3) {
+            return setFieldError('grp_password', 'err_password', 'Mật khẩu phải từ 3 ký tự trở lên.');
+        }
+        return setFieldError('grp_password', 'err_password', '');
+    }
+
+    function validateNewPassword() {
+        const el = document.getElementById('new_password');
+        if (!el) return true;
+        const val = el.value;
+        if (!val || val.length < 3) {
+            return setFieldError('grp_new_password', 'err_new_password', 'Mật khẩu mới phải từ 3 ký tự trở lên.');
+        }
+        return setFieldError('grp_new_password', 'err_new_password', '');
+    }
+
+    function validateConfirmPassword() {
+        const newEl = document.getElementById('new_password');
+        const confEl = document.getElementById('confirm_password');
+        if (!newEl || !confEl) return true;
+        if (!confEl.value || confEl.value !== newEl.value) {
+            return setFieldError('grp_confirm_password', 'err_confirm_password', 'Mật khẩu xác nhận không khớp với mật khẩu mới.');
+        }
+        return setFieldError('grp_confirm_password', 'err_confirm_password', '');
+    }
+
+    function syncSuggestedLoginName() {
+        const sel = document.getElementById('manv');
+        const loginInput = document.getElementById('login_name');
+        if (!sel || !loginInput) return;
+        loginInput.value = 'nv' + sel.value;
+        validateLoginName();
+    }
+
+    function openAccModal() {
+        const modal = document.getElementById('accModal');
+        if (!modal) return;
+        const sel = document.getElementById('manv');
+        if (sel && selectedAccRow && selectedAccRow.dataset.hasAcc === '0') {
+            const opt = Array.from(sel.options).find(o => o.value === selectedAccRow.dataset.manv);
+            if (opt) sel.value = opt.value;
+        }
+        syncSuggestedLoginName();
+        document.getElementById('password').value = '';
+        ['login_name', 'password'].forEach(k => setFieldError('grp_' + k, 'err_' + k, ''));
+        modal.showModal();
+        document.getElementById('password').focus();
+    }
+
+    function openPasswordModal() {
+        if (!selectedAccRow || selectedAccRow.dataset.hasAcc !== '1') return;
+        const d = selectedAccRow.dataset;
+        document.getElementById('pwd_emp_display').value = d.hoten + ' (Mã NV: ' + d.manv + ')';
+        document.getElementById('pwd_login_name').value = d.login;
+        document.getElementById('new_password').value = '';
+        document.getElementById('confirm_password').value = '';
+        ['new_password', 'confirm_password'].forEach(k => setFieldError('grp_' + k, 'err_' + k, ''));
+        document.getElementById('accPasswordModal').showModal();
+        document.getElementById('new_password').focus();
+    }
+
+    const accForm = document.getElementById('accForm');
+    if (accForm) {
+        document.getElementById('login_name').addEventListener('input', validateLoginName);
+        document.getElementById('password').addEventListener('input', validatePassword);
+        accForm.addEventListener('submit', function (e) {
+            const checks = [
+                [validateLoginName(), 'login_name'],
+                [validatePassword(), 'password'],
+            ];
+            const firstInvalid = checks.find(([ok]) => !ok);
+            if (firstInvalid) {
+                e.preventDefault();
+                document.getElementById(firstInvalid[1]).focus();
+            }
+        });
+    }
+
+    const pwdForm = document.getElementById('accPasswordForm');
+    if (pwdForm) {
+        document.getElementById('new_password').addEventListener('input', () => {
+            validateNewPassword();
+            if (document.getElementById('confirm_password').value) validateConfirmPassword();
+        });
+        document.getElementById('confirm_password').addEventListener('input', validateConfirmPassword);
+        pwdForm.addEventListener('submit', function (e) {
+            const checks = [
+                [validateNewPassword(), 'new_password'],
+                [validateConfirmPassword(), 'confirm_password'],
+            ];
+            const firstInvalid = checks.find(([ok]) => !ok);
+            if (firstInvalid) {
+                e.preventDefault();
+                document.getElementById(firstInvalid[1]).focus();
+            }
+        });
+    }
+</script>
+{% endblock %}

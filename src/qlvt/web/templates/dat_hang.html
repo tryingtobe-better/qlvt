@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{% block title %}Đơn đặt hàng — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Đơn đặt hàng{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+    <div class="toolbar-left">
+        <button type="button" class="btn btn-primary" onclick="openNewOrderModal()">+ Lập đơn</button>
+        {% if selected_order and can_modify %}
+        <button type="button" class="btn" onclick="openEditOrderModal()">Sửa đơn</button>
+        {% else %}
+        <button type="button" class="btn" disabled
+            title="{{ lock_reason or 'Chưa chọn đơn hàng' }}">Sửa đơn</button>
+        {% endif %}
+        <button type="button" class="btn" id="btnToolbarSave" disabled
+            title="Lưu thay đổi số lượng / đơn giá mặt hàng trong đơn">Lưu</button>
+        {% if selected_order and can_modify and not selected_order.DaCoPhieuNhap %}
+        <form method="post" action="{{ url_for('dat_hang_delete', maso_ddh=selected_order.MasoDDH) }}"
+            data-confirm="Bạn có chắc chắn muốn xóa toàn bộ đơn đặt hàng &quot;{{ selected_order.MasoDDH }}&quot; ({{ selected_order.NhaCC }}) không?"
+            style="display:inline;">
+            <button type="submit" class="btn btn-danger-ghost">Xóa đơn</button>
+        </form>
+        {% else %}
+        <button type="button" class="btn" disabled
+            title="{{ (lock_reason if not can_modify else 'Đơn hàng đã phát sinh phiếu nhập nên không thể xóa cả đơn') if selected_order else 'Chưa chọn đơn hàng' }}">Xóa đơn</button>
+        {% endif %}
+        <form method="post" action="{{ url_for('dat_hang_undo') }}" style="display:inline;">
+            <button type="submit" class="btn btn-undo" {% if not can_undo %}disabled{% endif %}
+                title="{{ next_undo or 'Không có thao tác nào cần hoàn tác' }}">
+                ↶ Hoàn tác{% if undo_count %} ({{ undo_count }}){% endif %}
+            </button>
+        </form>
+    </div>
+    <div class="toolbar-right">
+        <form method="get" action="{{ url_for('dat_hang_page') }}" style="display: flex; gap: 0.4rem;">
+            <input type="search" name="q" value="{{ keyword }}" placeholder="Tìm mã đơn, nhà cung cấp..."
+                style="width: 240px;">
+            <button type="submit" class="btn">Tìm</button>
+            {% if keyword %}
+            <a href="{{ url_for('dat_hang_page') }}" class="btn">Xóa lọc</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="voucher-layout">
+    <div class="card">
+        <div class="card-header">
+            <h2>Danh sách đơn hàng ({{ orders|length }})</h2>
+        </div>
+        <div>
+            {% for dh in orders %}
+            <a href="{{ url_for('dat_hang_page', select=dh.MasoDDH, q=keyword) }}"
+                class="voucher-list-item {{ 'active' if selected_order and selected_order.MasoDDH == dh.MasoDDH else '' }}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <strong>{{ dh.MasoDDH }}</strong>
+                    {% if dh.TrangThaiNhap == 'Đã nhập đủ' %}
+                    <span class="pill pill-green">Đã nhập đủ</span>
+                    {% elif dh.TrangThaiNhap == 'Nhập một phần' %}
+                    <span class="pill pill-amber">Nhập một phần</span>
+                    {% else %}
+                    <span class="pill pill-gray">Chưa nhập</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 0.85rem; color: #334155; margin-bottom: 0.2rem;">{{ dh.NhaCC }}</div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b;">
+                    <span>{{ dh.NGAY }} · {{ dh.SoMatHang }} mặt hàng</span>
+                    <strong style="color: #0f172a;">{{ "{:,.0f}".format(dh.TongTriGia).replace(",", ".") }} đ</strong>
+                </div>
+            </a>
+            {% else %}
+            <div class="empty-state">Chưa có đơn đặt hàng nào.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        {% if selected_order %}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Đơn đặt hàng {{ selected_order.MasoDDH }}</h2>
+                    <div style="font-size: 0.825rem; color: #64748b; margin-top: 0.15rem;">
+                        Nhà cung cấp: <strong>{{ selected_order.NhaCC }}</strong> · Ngày đặt: {{ selected_order.NGAY }}
+                        · Người lập: {{ selected_order.HoTenNV }}
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                    {% if selected_order.TrangThaiNhap == 'Đã nhập đủ' %}
+                    <span class="pill pill-green">Đã nhập đủ ({{ "{:,}".format(selected_order.TongSLDaNhap) }}/{{ "{:,}".format(selected_order.TongSLDat) }})</span>
+                    {% elif selected_order.TrangThaiNhap == 'Nhập một phần' %}
+                    <span class="pill pill-amber">Nhập một phần ({{ "{:,}".format(selected_order.TongSLDaNhap) }}/{{ "{:,}".format(selected_order.TongSLDat) }})</span>
+                    {% else %}
+                    <span class="pill pill-gray">Chưa nhập (0/{{ "{:,}".format(selected_order.TongSLDat) }})</span>
+                    {% endif %}
+                    {% if not can_modify and not selected_order.DaNhapDu and lock_reason %}
+                    <span style="font-size: 0.75rem; color: #64748b;">🔒 {{ lock_reason }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if can_modify %}
+            <div style="padding: 1rem 1.25rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <form method="post" action="{{ url_for('dat_hang_add_detail', maso_ddh=selected_order.MasoDDH) }}"
+                    style="display: grid; grid-template-columns: 2.2fr 0.9fr 1.1fr auto; gap: 0.65rem; align-items: end;">
+                    <div>
+                        <label style="font-size: 0.78rem; color: #475569; display: block; margin-bottom: 0.25rem;">
+                            Mặt hàng (chọn trùng sẽ tự cộng dồn SL)
+                        </label>
+                        <select name="mavt" required>
+                            {% if unadded_materials %}
+                            <optgroup label="Mặt hàng chưa có trong đơn">
+                                {% for vt in unadded_materials %}
+                                <option value="{{ vt.MAVT }}">{{ vt.TENVT }} ({{ vt.DVT }})</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            {% if added_materials %}
+                            <optgroup label="Đã có trong đơn (cộng dồn thêm SL)">
+                                {% for vt in added_materials %}
+                                <option value="{{ vt.MAVT }}">{{ vt.TENVT }} — Đang đặt: {{ vt.SoLuongDaDat }} {{ vt.DVT }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.78rem; color: #475569; display: block; margin-bottom: 0.25rem;">Số lượng đặt</label>
+                        <input type="number" name="soluong" min="1" value="10" required style="text-align: right;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.78rem; color: #475569; display: block; margin-bottom: 0.25rem;">Đơn giá (đ)</label>
+                        <input type="text" inputmode="numeric" class="money-input" name="dongia" value="100.000" required
+                            style="text-align: right;">
+                    </div>
+                    <button type="submit" class="btn btn-primary">+ Thêm mặt hàng</button>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mặt hàng</th>
+                            <th>Đơn vị</th>
+                            <th class="num">Tiến độ nhập</th>
+                            <th class="num" style="width: 120px;">Số lượng đặt</th>
+                            <th class="num" style="width: 150px;">Đơn giá (đ)</th>
+                            <th class="num">Thành tiền</th>
+                            {% if can_modify %}<th class="num">Thao tác</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ct in details %}
+                        <tr class="detail-row">
+                            <td><strong>{{ ct.TENVT }}</strong> <span style="color:#94a3b8;font-size:0.8rem;">({{ ct.MAVT }})</span></td>
+                            <td>{{ ct.DVT }}</td>
+                            <td class="num">
+                                {% if ct.TrangThaiDong == 'Đã nhập đủ' %}
+                                <span class="pill pill-green">Đủ {{ "{:,}".format(ct.SLDaNhap) }}</span>
+                                {% elif ct.TrangThaiDong == 'Nhập một phần' %}
+                                <span class="pill pill-amber">Đã nhập {{ "{:,}".format(ct.SLDaNhap) }}</span>
+                                {% else %}
+                                <span class="pill pill-gray">Chưa nhập</span>
+                                {% endif %}
+                            </td>
+                            {% if can_modify %}
+                            <td class="num">
+                                <form method="post" id="ddh-edit-{{ ct.MAVT }}" class="detail-edit-form"
+                                    action="{{ url_for('dat_hang_update_detail', maso_ddh=selected_order.MasoDDH, mavt=ct.MAVT) }}"
+                                    style="margin: 0; display: flex; justify-content: flex-end;">
+                                    <input type="number" name="soluong"
+                                        min="{{ ct.SLDaNhap if (ct.SLDaNhap or 0) > 0 else 1 }}"
+                                        value="{{ ct.SOLUONG }}"
+                                        title="{{ 'Tối thiểu ' ~ ct.SLDaNhap ~ ' (đã nhập kho)' if (ct.SLDaNhap or 0) > 0 else 'Số lượng đặt' }}"
+                                        style="width: 96px; text-align: right;" required>
+                                </form>
+                            </td>
+                            <td class="num">
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <input type="text" inputmode="numeric" class="money-input" name="dongia"
+                                        form="ddh-edit-{{ ct.MAVT }}"
+                                        value="{{ '{:,.0f}'.format(ct.DONGIA).replace(',', '.') }}"
+                                        style="width: 132px; text-align: right;" required>
+                                </div>
+                            </td>
+                            {% else %}
+                            <td class="num">{{ "{:,}".format(ct.SOLUONG) }}</td>
+                            <td class="num">{{ "{:,.0f}".format(ct.DONGIA).replace(",", ".") }} đ</td>
+                            {% endif %}
+                            <td class="num"><strong>{{ "{:,.0f}".format(ct.ThanhTien).replace(",", ".") }} đ</strong></td>
+                            {% if can_modify %}
+                            <td class="num" style="white-space: nowrap;">
+                                {% if (ct.SLDaNhap or 0) == 0 %}
+                                <form method="post"
+                                    action="{{ url_for('dat_hang_delete_detail', maso_ddh=selected_order.MasoDDH, mavt=ct.MAVT) }}"
+                                    data-confirm="Bạn có chắc chắn muốn xóa mặt hàng &quot;{{ ct.TENVT }}&quot; ({{ ct.MAVT }}) khỏi đơn đặt hàng {{ selected_order.MasoDDH }} không?"
+                                    style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger-ghost">Xóa</button>
+                                </form>
+                                {% else %}
+                                <span style="font-size: 0.78rem; color: #94a3b8;"
+                                    title="Mặt hàng đã phát sinh nhập kho nên không thể xóa khỏi đơn">Đã nhập kho</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-state">Chưa có mặt hàng nào trong đơn đặt hàng này.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if can_modify %}
+        <dialog id="editOrderModal" class="modal">
+            <form method="post" action="{{ url_for('dat_hang_update', maso_ddh=selected_order.MasoDDH) }}" id="editOrderForm" novalidate>
+                <div class="modal-header">
+                    <h3>Sửa thông tin đơn {{ selected_order.MasoDDH }}</h3>
+                    <button type="button" class="btn btn-sm"
+                        onclick="document.getElementById('editOrderModal').close()">Đóng</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><span>Mã đơn hàng</span></label>
+                            <input type="text" value="{{ selected_order.MasoDDH }}" readonly>
+                        </div>
+                        <div class="form-group" id="grp_edit_ngay">
+                            <label for="edit_ngay">
+                                <span>Ngày đặt hàng</span>
+                                <span class="label-meta">
+                                    ≤ {{ selected_order.NgayNhapSomNhat if selected_order.NgayNhapSomNhat else 'hôm nay' }}
+                                </span>
+                            </label>
+                            <input type="date" id="edit_ngay" name="ngay" value="{{ selected_order.NGAY }}"
+                                max="{{ selected_order.NgayNhapSomNhat if selected_order.NgayNhapSomNhat else today }}" required>
+                            <div class="field-error" id="err_edit_ngay"></div>
+                        </div>
+                    </div>
+                    <div class="form-group" id="grp_edit_nhacc">
+                        <label for="edit_nhacc">
+                            <span>Nhà cung cấp</span>
+                            <span class="label-meta">≤ 100 ký tự</span>
+                        </label>
+                        <input type="text" id="edit_nhacc" name="nhacc" maxlength="100"
+                            value="{{ selected_order.NhaCC }}" required>
+                        <div class="field-error" id="err_edit_nhacc"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label><span>Người lập đơn</span></label>
+                        <input type="text" value="{{ selected_order.HoTenNV }} (Mã NV: {{ selected_order.MANV }})"
+                            readonly>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn"
+                        onclick="document.getElementById('editOrderModal').close()">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </dialog>
+        {% endif %}
+
+        {% else %}
+        <div class="card">
+            <div class="empty-state">Chọn một đơn đặt hàng bên trái để xem chi tiết.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<dialog id="newOrderModal" class="modal">
+    <form method="post" action="{{ url_for('dat_hang_create') }}" id="newOrderForm" novalidate>
+        <div class="modal-header">
+            <h3>Lập đơn đặt hàng mới</h3>
+            <button type="button" class="btn btn-sm"
+                onclick="document.getElementById('newOrderModal').close()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group" id="grp_maso_ddh">
+                    <label for="maso_ddh">
+                        <span>Mã đơn hàng</span>
+                        <span class="label-meta">A–Z, 0–9, ≤ 8 ký tự</span>
+                    </label>
+                    <input type="text" id="maso_ddh" name="maso_ddh" maxlength="8"
+                        value="{{ suggested_ddh }}" style="text-transform: uppercase;" required>
+                    <div class="field-error" id="err_maso_ddh"></div>
+                </div>
+                <div class="form-group" id="grp_ngay">
+                    <label for="ngay">
+                        <span>Ngày đặt</span>
+                        <span class="label-meta">≤ hôm nay</span>
+                    </label>
+                    <input type="date" id="ngay" name="ngay" value="{{ today }}" max="{{ today }}" required>
+                    <div class="field-error" id="err_ngay"></div>
+                </div>
+            </div>
+            <div class="form-group" id="grp_nhacc">
+                <label for="nhacc">
+                    <span>Nhà cung cấp</span>
+                    <span class="label-meta">≤ 100 ký tự</span>
+                </label>
+                <input type="text" id="nhacc" name="nhacc" maxlength="100" required
+                    placeholder="Tên công ty / đại lý cung cấp...">
+                <div class="field-error" id="err_nhacc"></div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label><span>Người lập đơn</span></label>
+                <input type="text" value="{{ current_user.ho_ten }} (Mã NV: {{ current_user.manv }})" readonly>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn"
+                onclick="document.getElementById('newOrderModal').close()">Hủy</button>
+            <button type="submit" class="btn btn-primary">Tạo đơn hàng</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const suggestedDdh = "{{ suggested_ddh }}";
+    const todayStr = "{{ today }}";
+    const existingDdhs = new Set({{ (existing_ddhs or []) | tojson }});
+
+    function validateMasoDdh() {
+        const val = document.getElementById('maso_ddh').value.trim().toUpperCase();
+        if (!val || !/^[A-Z0-9]{1,8}$/.test(val)) {
+            return setFieldError('grp_maso_ddh', 'err_maso_ddh', 'Mã đơn gồm chữ/số không dấu (A–Z, 0–9), tối đa 8 ký tự.');
+        }
+        if (existingDdhs.has(val)) {
+            return setFieldError('grp_maso_ddh', 'err_maso_ddh', 'Mã đơn ' + val + ' đã tồn tại (gợi ý: ' + suggestedDdh + ').');
+        }
+        return setFieldError('grp_maso_ddh', 'err_maso_ddh', '');
+    }
+
+    function validateNgayDat(inputId, grpId, errId) {
+        const el = document.getElementById(inputId);
+        if (!el) return true;
+        const val = el.value;
+        const maxAllowed = el.max || todayStr;
+        if (!val) {
+            return setFieldError(grpId, errId, 'Vui lòng chọn ngày đặt hàng.');
+        }
+        if (val > maxAllowed) {
+            return setFieldError(grpId, errId, 'Ngày đặt hàng không được lớn hơn ' + maxAllowed + '.');
+        }
+        return setFieldError(grpId, errId, '');
+    }
+
+    function validateNhaCc(inputId, grpId, errId) {
+        const el = document.getElementById(inputId);
+        if (!el) return true;
+        const val = el.value.trim();
+        if (!val) {
+            return setFieldError(grpId, errId, 'Vui lòng nhập tên nhà cung cấp.');
+        }
+        if (val.length > 100) {
+            return setFieldError(grpId, errId, 'Tên nhà cung cấp tối đa 100 ký tự.');
+        }
+        return setFieldError(grpId, errId, '');
+    }
+
+    function openNewOrderModal() {
+        document.getElementById('maso_ddh').value = suggestedDdh;
+        document.getElementById('ngay').value = todayStr;
+        document.getElementById('nhacc').value = '';
+        ['maso_ddh', 'ngay', 'nhacc'].forEach(k => setFieldError('grp_' + k, 'err_' + k, ''));
+        document.getElementById('newOrderModal').showModal();
+        document.getElementById('nhacc').focus();
+    }
+
+    function openEditOrderModal() {
+        const modal = document.getElementById('editOrderModal');
+        if (!modal) return;
+        ['edit_ngay', 'edit_nhacc'].forEach(k => setFieldError('grp_' + k, 'err_' + k, ''));
+        modal.showModal();
+        document.getElementById('edit_nhacc').focus();
+    }
+
+    document.getElementById('maso_ddh').addEventListener('input', validateMasoDdh);
+    document.getElementById('ngay').addEventListener('input', () => validateNgayDat('ngay', 'grp_ngay', 'err_ngay'));
+    document.getElementById('nhacc').addEventListener('input', () => validateNhaCc('nhacc', 'grp_nhacc', 'err_nhacc'));
+
+    document.getElementById('newOrderForm').addEventListener('submit', function (e) {
+        const checks = [
+            [validateMasoDdh(), 'maso_ddh'],
+            [validateNgayDat('ngay', 'grp_ngay', 'err_ngay'), 'ngay'],
+            [validateNhaCc('nhacc', 'grp_nhacc', 'err_nhacc'), 'nhacc'],
+        ];
+        const firstInvalid = checks.find(([ok]) => !ok);
+        if (firstInvalid) {
+            e.preventDefault();
+            document.getElementById(firstInvalid[1]).focus();
+        }
+    });
+
+    const editForm = document.getElementById('editOrderForm');
+    if (editForm) {
+        document.getElementById('edit_ngay').addEventListener('input', () => validateNgayDat('edit_ngay', 'grp_edit_ngay', 'err_edit_ngay'));
+        document.getElementById('edit_nhacc').addEventListener('input', () => validateNhaCc('edit_nhacc', 'grp_edit_nhacc', 'err_edit_nhacc'));
+        editForm.addEventListener('submit', function (e) {
+            const checks = [
+                [validateNgayDat('edit_ngay', 'grp_edit_ngay', 'err_edit_ngay'), 'edit_ngay'],
+                [validateNhaCc('edit_nhacc', 'grp_edit_nhacc', 'err_edit_nhacc'), 'edit_nhacc'],
+            ];
+            const firstInvalid = checks.find(([ok]) => !ok);
+            if (firstInvalid) {
+                e.preventDefault();
+                document.getElementById(firstInvalid[1]).focus();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initDetailToolbarSave('btnToolbarSave');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Sao lưu dữ liệu — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Sao lưu dữ liệu{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 580px;">
+    <div class="card-header">
+        <h2>Tạo bản sao lưu dữ liệu kho</h2>
+    </div>
+    <div class="card-body">
+        <p style="color: #475569; margin-bottom: 1.1rem;">
+            Tạo tệp sao lưu dự phòng cho toàn bộ dữ liệu nhân viên, vật tư và các phiếu giao dịch hiện có.
+        </p>
+
+        <form method="post" action="{{ url_for('backup_page') }}">
+            <div class="form-group">
+                <label for="backup_path">Đường dẫn lưu tệp (.bak)</label>
+                <input type="text" id="backup_path" name="backup_path" value="{{ default_backup_path }}" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 400;">
+                    <input type="checkbox" name="overwrite" value="1" checked>
+                    Ghi đè nếu tệp sao lưu cũ đã tồn tại
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Bắt đầu sao lưu</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

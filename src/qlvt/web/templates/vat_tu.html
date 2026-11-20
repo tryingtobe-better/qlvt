@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Vật tư — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Danh mục vật tư{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+    <div class="toolbar-left">
+        <button type="button" class="btn btn-primary" onclick="openMaterialModal()">+ Thêm</button>
+        <button type="button" class="btn" id="btnVtEdit" onclick="editSelectedMaterial()" disabled>Sửa</button>
+        <form method="post" id="vtDeleteForm" style="display:inline;">
+            <button type="submit" class="btn btn-danger-ghost" id="btnVtDelete" disabled>Xóa</button>
+        </form>
+        <form method="post" action="{{ url_for('vat_tu_undo') }}" style="display:inline;">
+            <button type="submit" class="btn btn-undo" {% if not can_undo %}disabled{% endif %}
+                title="{{ next_undo or 'Không có thao tác nào cần hoàn tác' }}">
+                ↶ Hoàn tác{% if undo_count %} ({{ undo_count }}){% endif %}
+            </button>
+        </form>
+    </div>
+
+    <div class="toolbar-right">
+        <form method="get" action="{{ url_for('vat_tu_page') }}" style="display: flex; gap: 0.4rem;">
+            <input type="search" name="q" value="{{ keyword }}" placeholder="Tìm tên, mã vật tư hoặc ĐVT..."
+                style="width: 250px;">
+            <button type="submit" class="btn">Tìm</button>
+            {% if keyword %}
+            <a href="{{ url_for('vat_tu_page') }}" class="btn">Xóa lọc</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Mã vật tư</th>
+                    <th>Tên vật tư</th>
+                    <th style="width: 150px;">Đơn vị tính</th>
+                    <th class="num" style="width: 150px;">Số lượng tồn</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vt in rows %}
+                <tr class="selectable-row vt-row" data-mavt="{{ vt.MAVT }}" data-tenvt="{{ vt.TENVT }}"
+                    data-dvt="{{ vt.DVT }}" data-slt="{{ vt.Soluongton }}"
+                    data-can-delete="{{ '1' if vt.CoTheXoa else '0' }}"
+                    data-has-tx="{{ '1' if vt.DaCoGiaoDich else '0' }}"
+                    data-delete-url="{{ url_for('vat_tu_delete', mavt=vt.MAVT) }}"
+                    onclick="selectMaterialRow(this)" ondblclick="selectMaterialRow(this); editSelectedMaterial();">
+                    <td><strong>{{ vt.MAVT }}</strong></td>
+                    <td><strong>{{ vt.TENVT }}</strong></td>
+                    <td>{{ vt.DVT }}</td>
+                    <td class="num"><strong>{{ "{:,}".format(vt.Soluongton) }}</strong></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="empty-state">Chưa có vật tư nào phù hợp.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<dialog id="vtModal" class="modal">
+    <form method="post" action="{{ url_for('vat_tu_save') }}" id="vtForm" novalidate>
+        <div class="modal-header">
+            <h3 id="vtModalTitle">Thêm vật tư mới</h3>
+            <button type="button" class="btn btn-sm" onclick="document.getElementById('vtModal').close()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="vt_mode" name="mode" value="create">
+
+            <div class="form-row">
+                <div class="form-group" id="grp_mavt">
+                    <label for="vt_mavt">
+                        <span>Mã vật tư</span>
+                        <span class="label-meta" id="meta_mavt">A–Z, 0–9, ≤ 4 ký tự</span>
+                    </label>
+                    <input type="text" id="vt_mavt" name="mavt" maxlength="4" value="{{ suggested_mavt }}"
+                        style="text-transform: uppercase;" required>
+                    <div class="field-error" id="err_mavt"></div>
+                </div>
+
+                <div class="form-group" id="grp_dvt">
+                    <label for="vt_dvt">
+                        <span>Đơn vị tính</span>
+                        <span class="label-meta" id="meta_dvt">≤ 15 ký tự</span>
+                    </label>
+                    <input type="text" id="vt_dvt" name="dvt" maxlength="15" value="Bao" required
+                        placeholder="Bao, Cuộn, Thùng...">
+                    <div class="field-error" id="err_dvt"></div>
+                </div>
+            </div>
+
+            <div class="form-group" id="grp_tenvt">
+                <label for="vt_tenvt">
+                    <span>Tên vật tư</span>
+                    <span class="label-meta">Duy nhất, ≤ 30 ký tự</span>
+                </label>
+                <input type="text" id="vt_tenvt" name="tenvt" maxlength="30" required placeholder="Nhập tên vật tư">
+                <div class="field-error" id="err_tenvt"></div>
+            </div>
+
+            <div class="form-group" id="grp_slt" style="margin-bottom: 0;">
+                <label for="vt_slt">
+                    <span>Số lượng tồn</span>
+                    <span class="label-meta" id="meta_slt">Số nguyên ≥ 0</span>
+                </label>
+                <input type="number" id="vt_slt" name="soluongton" min="0" step="1" value="0" required>
+                <div class="field-error" id="err_slt"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="document.getElementById('vtModal').close()">Hủy</button>
+            <button type="submit" class="btn btn-primary">Lưu vật tư</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const suggestedMavt = "{{ suggested_mavt }}";
+    const existingItems = {{ (existing_items or {}) | tojson }};
+    let selectedVtRow = null;
+
+    function selectMaterialRow(row) {
+        document.querySelectorAll('tr.vt-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+        selectedVtRow = row;
+        if (!row) return;
+        row.classList.add('is-selected');
+        saveRowSelection(row, 'mavt');
+
+        const d = row.dataset;
+        const editBtn = document.getElementById('btnVtEdit');
+        const delForm = document.getElementById('vtDeleteForm');
+        const delBtn = document.getElementById('btnVtDelete');
+
+        editBtn.disabled = false;
+        editBtn.title = 'Sửa vật tư: ' + d.mavt + ' - ' + d.tenvt;
+
+        if (d.canDelete === '1') {
+            delForm.action = d.deleteUrl;
+            delForm.dataset.confirmTitle = 'Xác nhận xóa vật tư';
+            delForm.dataset.confirmBtn = 'Xác nhận xóa';
+            delForm.dataset.confirm = 'Bạn có chắc chắn muốn xóa vật tư "' + d.tenvt + '" (' + d.mavt + ') không?';
+            delBtn.disabled = false;
+            delBtn.className = 'btn btn-danger-ghost';
+            delBtn.title = 'Xóa vật tư ' + d.mavt;
+        } else {
+            delForm.removeAttribute('data-confirm');
+            delBtn.disabled = true;
+            delBtn.className = 'btn';
+            delBtn.title = 'Không thể xóa vật tư có số lượng tồn > 0 hoặc đã phát sinh trong đơn đặt / phiếu nhập / phiếu xuất';
+        }
+    }
+
+    function validateMavt() {
+        const mode = document.getElementById('vt_mode').value;
+        const val = document.getElementById('vt_mavt').value.trim().toUpperCase();
+        if (!val || !/^[A-Z0-9]{1,4}$/.test(val)) {
+            return setFieldError('grp_mavt', 'err_mavt', 'Mã vật tư gồm chữ/số không dấu (A–Z, 0–9), tối đa 4 ký tự.');
+        }
+        if (mode === 'create' && Object.prototype.hasOwnProperty.call(existingItems, val)) {
+            return setFieldError('grp_mavt', 'err_mavt', 'Mã vật tư ' + val + ' đã tồn tại (gợi ý: ' + suggestedMavt + ').');
+        }
+        return setFieldError('grp_mavt', 'err_mavt', '');
+    }
+
+    function validateTenvt() {
+        const mode = document.getElementById('vt_mode').value;
+        const curMavt = document.getElementById('vt_mavt').value.trim().toUpperCase();
+        const val = document.getElementById('vt_tenvt').value.trim().replace(/\s+/g, ' ');
+        if (!val) {
+            return setFieldError('grp_tenvt', 'err_tenvt', 'Vui lòng nhập tên vật tư.');
+        }
+        if (val.length > 30) {
+            return setFieldError('grp_tenvt', 'err_tenvt', 'Tên vật tư tối đa 30 ký tự.');
+        }
+        const lowerVal = val.toLowerCase();
+        for (const [code, name] of Object.entries(existingItems)) {
+            if (mode === 'update' && code === curMavt) continue;
+            if (String(name).toLowerCase() === lowerVal) {
+                return setFieldError('grp_tenvt', 'err_tenvt', 'Tên vật tư này đã tồn tại ở mã ' + code + '.');
+            }
+        }
+        return setFieldError('grp_tenvt', 'err_tenvt', '');
+    }
+
+    function validateDvt() {
+        const val = document.getElementById('vt_dvt').value.trim();
+        if (!val) {
+            return setFieldError('grp_dvt', 'err_dvt', 'Vui lòng nhập đơn vị tính.');
+        }
+        if (val.length > 15) {
+            return setFieldError('grp_dvt', 'err_dvt', 'Đơn vị tính tối đa 15 ký tự.');
+        }
+        return setFieldError('grp_dvt', 'err_dvt', '');
+    }
+
+    function validateSlt() {
+        const raw = document.getElementById('vt_slt').value.trim();
+        if (raw === '' || !/^\d+$/.test(raw) || Number(raw) < 0) {
+            return setFieldError('grp_slt', 'err_slt', 'Số lượng tồn phải là số nguyên lớn hơn hoặc bằng 0.');
+        }
+        return setFieldError('grp_slt', 'err_slt', '');
+    }
+
+    function resetVtValidation() {
+        ['mavt', 'dvt', 'tenvt', 'slt'].forEach(k => setFieldError('grp_' + k, 'err_' + k, ''));
+    }
+
+    function openMaterialModal() {
+        document.getElementById('vtModalTitle').textContent = 'Thêm vật tư mới';
+        document.getElementById('vt_mode').value = 'create';
+        const codeInput = document.getElementById('vt_mavt');
+        codeInput.value = suggestedMavt;
+        codeInput.readOnly = false;
+        document.getElementById('meta_mavt').textContent = 'A–Z, 0–9, ≤ 4 ký tự';
+        document.getElementById('vt_tenvt').value = '';
+        const dvtInput = document.getElementById('vt_dvt');
+        dvtInput.value = 'Bao';
+        dvtInput.readOnly = false;
+        document.getElementById('meta_dvt').textContent = '≤ 15 ký tự';
+        const sltInput = document.getElementById('vt_slt');
+        sltInput.value = '0';
+        sltInput.readOnly = false;
+        document.getElementById('meta_slt').textContent = 'Số nguyên ≥ 0';
+        resetVtValidation();
+        document.getElementById('vtModal').showModal();
+        document.getElementById('vt_tenvt').focus();
+    }
+
+    function editSelectedMaterial() {
+        if (!selectedVtRow) return;
+        const d = selectedVtRow.dataset;
+        document.getElementById('vtModalTitle').textContent = 'Cập nhật vật tư';
+        document.getElementById('vt_mode').value = 'update';
+        const codeInput = document.getElementById('vt_mavt');
+        codeInput.value = d.mavt;
+        codeInput.readOnly = true;
+        document.getElementById('meta_mavt').textContent = '';
+        document.getElementById('vt_tenvt').value = d.tenvt;
+        const hasTx = d.hasTx === '1';
+        const dvtInput = document.getElementById('vt_dvt');
+        dvtInput.value = d.dvt;
+        dvtInput.readOnly = hasTx;
+        document.getElementById('meta_dvt').textContent = hasTx ? 'Đã phát sinh phiếu' : '≤ 15 ký tự';
+        const sltInput = document.getElementById('vt_slt');
+        sltInput.value = d.slt;
+        sltInput.readOnly = hasTx;
+        document.getElementById('meta_slt').textContent = hasTx ? 'Tự động qua Nhập/Xuất' : 'Số nguyên ≥ 0';
+        resetVtValidation();
+        document.getElementById('vtModal').showModal();
+        document.getElementById('vt_tenvt').focus();
+    }
+
+    restoreRowSelection(selectMaterialRow, 'mavt');
+
+    document.getElementById('vt_mavt').addEventListener('input', validateMavt);
+    document.getElementById('vt_tenvt').addEventListener('input', validateTenvt);
+    document.getElementById('vt_dvt').addEventListener('input', validateDvt);
+    document.getElementById('vt_slt').addEventListener('input', validateSlt);
+
+    document.getElementById('vtForm').addEventListener('submit', function (e) {
+        const checks = [
+            [validateMavt(), 'vt_mavt'],
+            [validateDvt(), 'vt_dvt'],
+            [validateTenvt(), 'vt_tenvt'],
+            [validateSlt(), 'vt_slt'],
+        ];
+        const firstInvalid = checks.find(([ok]) => !ok);
+        if (firstInvalid) {
+            e.preventDefault();
+            document.getElementById(firstInvalid[1]).focus();
+        }
+    });
+</script>
+{% endblock %}

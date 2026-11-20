@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Tổng quan — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Tổng quan{% endblock %}
+{% block content %}
+<style>
+    .dash-hero {
+        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        color: #fff;
+        border-radius: 12px;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .dash-hero h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .dash-hero p {
+        opacity: 0.88;
+        margin-top: 0.2rem;
+        font-size: 0.9rem;
+    }
+
+    .dash-today {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .dash-today-item {
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        padding: 0.5rem 0.9rem;
+        text-align: center;
+        min-width: 92px;
+    }
+
+    .dash-today-item strong {
+        display: block;
+        font-size: 1.3rem;
+        line-height: 1.2;
+    }
+
+    .dash-today-item span {
+        font-size: 0.75rem;
+        opacity: 0.9;
+    }
+
+    .dash-section-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        margin: 0 0 0.7rem 0.1rem;
+    }
+
+    .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.6rem;
+    }
+
+    .dash-card {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        text-decoration: none;
+        color: var(--text);
+        transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    }
+
+    .dash-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px -10px rgba(15, 23, 42, 0.25);
+        border-color: #cbd5e1;
+    }
+
+    .dash-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .dash-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .ic-blue { background: #eff6ff; color: #1d4ed8; }
+    .ic-indigo { background: #eef2ff; color: #4338ca; }
+    .ic-amber { background: #fffbeb; color: #b45309; }
+    .ic-green { background: #ecfdf5; color: #047857; }
+    .ic-rose { background: #fff1f2; color: #be123c; }
+    .ic-slate { background: #f1f5f9; color: #334155; }
+
+    .dash-card-label {
+        font-size: 0.82rem;
+        color: var(--muted);
+    }
+
+    .dash-card-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .dash-card-title {
+        font-weight: 600;
+    }
+
+    .dash-card-desc {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+    }
+</style>
+
+<div class="dash-hero">
+    <div>
+        <h2 id="dashGreeting">Xin chào!</h2>
+        <p>Chúc bạn một ngày làm việc hiệu quả. Chọn một chức năng bên dưới để bắt đầu.</p>
+    </div>
+    <div class="dash-today">
+        <div class="dash-today-item"><strong>{{ stats.ddh_today }}</strong><span>Đơn đặt hôm nay</span></div>
+        <div class="dash-today-item"><strong>{{ stats.pn_today }}</strong><span>Phiếu nhập hôm nay</span></div>
+        <div class="dash-today-item"><strong>{{ stats.px_today }}</strong><span>Phiếu xuất hôm nay</span></div>
+    </div>
+</div>
+
+<div class="dash-section-title">Thao tác nhanh</div>
+<div class="dash-grid">
+    <a href="{{ url_for('dat_hang_page') }}" class="dash-card">
+        <span class="dash-icon ic-amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-title">Lập đơn đặt hàng</div>
+            <div class="dash-card-desc">Đặt mua vật tư từ nhà cung cấp</div>
+        </div>
+    </a>
+    <a href="{{ url_for('phieu_nhap_page') }}" class="dash-card">
+        <span class="dash-icon ic-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-title">Nhập kho</div>
+            <div class="dash-card-desc">Nhận hàng theo đơn đặt hàng</div>
+        </div>
+    </a>
+    <a href="{{ url_for('phieu_xuat_page') }}" class="dash-card">
+        <span class="dash-icon ic-rose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-title">Xuất kho</div>
+            <div class="dash-card-desc">Xuất vật tư cho khách hàng</div>
+        </div>
+    </a>
+    <a href="{{ url_for('bao_cao_page') }}" class="dash-card">
+        <span class="dash-icon ic-indigo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-title">Báo cáo kho</div>
+            <div class="dash-card-desc">Xem và in 7 biểu mẫu thống kê</div>
+        </div>
+    </a>
+    {% if permissions.can_backup_db %}
+    <a href="{{ url_for('backup_page') }}" class="dash-card">
+        <span class="dash-icon ic-slate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-title">Sao lưu dữ liệu</div>
+            <div class="dash-card-desc">Tạo bản sao lưu CSDL QLVT</div>
+        </div>
+    </a>
+    {% endif %}
+</div>
+
+<div class="dash-section-title">Số liệu hệ thống</div>
+<div class="dash-grid">
+    <a href="{{ url_for('nhan_vien_page') }}" class="dash-card">
+        <span class="dash-icon ic-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-1.8-5.5-4.5-6.5"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-label">Nhân viên đang làm việc</div>
+            <div class="dash-card-value">{{ stats.nv_count }}</div>
+        </div>
+    </a>
+    <a href="{{ url_for('vat_tu_page') }}" class="dash-card">
+        <span class="dash-icon ic-indigo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-label">Vật tư</div>
+            <div class="dash-card-value">{{ stats.vt_count }}</div>
+        </div>
+    </a>
+    <a href="{{ url_for('dat_hang_page') }}" class="dash-card">
+        <span class="dash-icon ic-amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-label">Đơn đặt hàng</div>
+            <div class="dash-card-value">{{ stats.ddh_count }}</div>
+        </div>
+    </a>
+    <a href="{{ url_for('phieu_nhap_page') }}" class="dash-card">
+        <span class="dash-icon ic-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-label">Phiếu nhập kho</div>
+            <div class="dash-card-value">{{ stats.pn_count }}</div>
+        </div>
+    </a>
+    <a href="{{ url_for('phieu_xuat_page') }}" class="dash-card">
+        <span class="dash-icon ic-rose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/></svg>
+        </span>
+        <div>
+            <div class="dash-card-label">Phiếu xuất kho</div>
+            <div class="dash-card-value">{{ stats.px_count }}</div>
+        </div>
+    </a>
+</div>
+
+<script>
+    (function () {
+        const h = new Date().getHours();
+        const part = h < 11 ? 'buổi sáng' : (h < 14 ? 'buổi trưa' : (h < 18 ? 'buổi chiều' : 'buổi tối'));
+        const el = document.getElementById('dashGreeting');
+        if (el) el.textContent = 'Chào ' + part + '!';
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập — Quản Lý Vật Tư (PTIT){% endblock %}
+{% block content %}
+<div style="max-width: 400px; margin: 4rem auto;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Logo_PTIT_University.png"
+            alt="Logo PTIT"
+            style="width: 64px; height: 64px; object-fit: contain; margin-bottom: 0.65rem;"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+        <div class="brand-fallback" style="width: 56px; height: 56px; font-size: 0.9rem; margin: 0 auto 0.65rem;">PTIT</div>
+        <h1 style="font-size: 1.35rem; font-weight: 700; color: #0f172a;">Quản Lý Vật Tư</h1>
+        <p style="color: #64748b; font-size: 0.84rem; margin-top: 0.2rem;">Học viện Công nghệ Bưu chính Viễn thông — Cơ sở TP.HCM</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <input type="text" id="username" name="username" value="admin" required autofocus>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label for="password">Mật khẩu</label>
+                    <input type="password" id="password" name="password" value="123456" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.6rem;">Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Quản Lý Vật Tư{% endblock %}</title>
+    <link rel="icon" href="https://commons.wikimedia.org/wiki/Special:FilePath/Logo_PTIT_University.png">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --sidebar-bg: #ffffff;
+            --primary: #0f766e;
+            --primary-hover: #115e59;
+            --primary-light: #f0fdfa;
+            --danger: #dc2626;
+            --danger-light: #fef2f2;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        aside.sidebar {
+            width: 232px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            min-height: 100vh;
+        }
+
+        .brand {
+            padding: 1.15rem 1.15rem 0.95rem;
+            font-size: 1.02rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-logo {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .brand-fallback {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #d71920;
+            color: #fff;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            border: 2px solid #fbbf24;
+            flex-shrink: 0;
+        }
+
+        .nav-group {
+            padding: 0.85rem 0.75rem 0.35rem;
+        }
+
+        .nav-group+.nav-group {
+            border-top: 1px dashed #f1f5f9;
+        }
+
+        .nav-group-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.24rem 0.7rem;
+            margin: 0 0.25rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.73rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border: 1px solid transparent;
+        }
+
+        .nav-group-title::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            display: inline-block;
+        }
+
+        .group-catalog {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .group-warehouse {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #a7f3d0;
+        }
+
+        .group-report {
+            background: #fffbeb;
+            color: #b45309;
+            border-color: #fde68a;
+        }
+
+        .group-system {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.52rem 0.75rem 0.52rem 0.95rem;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 2px;
+            transition: background 0.12s, color 0.12s;
+        }
+
+        .nav-link:hover {
+            background: #f1f5f9;
+            color: var(--text);
+        }
+
+        .nav-link.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-link.disabled {
+            color: #cbd5e1;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        header.topbar {
+            height: 56px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .role-tag {
+            font-size: 0.75rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            font-weight: 600;
+        }
+
+        .role-admin {
+            background: #ccfbf1;
+            color: #115e59;
+        }
+
+        .role-staff {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .page-body {
+            padding: 1.5rem;
+            max-width: 1280px;
+            width: 100%;
+            margin: 0 auto;
+            flex: 1;
+        }
+
+        .page-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .toolbar-left,
+        .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .card-header {
+            padding: 0.9rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .card-header h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.48rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.12s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+        }
+
+        .btn-danger-ghost {
+            color: var(--danger);
+            border-color: transparent;
+            background: transparent;
+        }
+
+        .btn-danger-ghost:hover {
+            background: var(--danger-light);
+            border-color: #fecaca;
+        }
+
+        .btn-undo:not(:disabled) {
+            background: #fffbeb;
+            border-color: #fcd34d;
+            color: #b45309;
+            font-weight: 600;
+        }
+
+        .btn-undo:not(:disabled):hover {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .btn-sm {
+            padding: 0.28rem 0.6rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn:disabled,
+        .btn.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .form-group {
+            margin-bottom: 0.9rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.825rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        input[type="date"],
+        input[type="search"],
+        select {
+            width: 100%;
+            padding: 0.48rem 0.7rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: var(--text);
+            background: #fff;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+
+        input[readonly] {
+            background: #f1f5f9;
+            color: var(--muted);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th,
+        td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: #fcfdfd;
+        }
+
+        .num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .empty-state {
+            padding: 2.5rem 1rem;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .pill-green {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .pill-amber {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .pill-red {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .pill-gray {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .alert {
+            padding: 0.7rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .alert-success,
+        .alert-undo_done {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .alert-info {
+            background: #f0f9ff;
+            color: #075985;
+            border-color: #bae6fd;
+        }
+
+        .voucher-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 1.25rem;
+            align-items: start;
+        }
+
+        .voucher-list-item {
+            display: block;
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border);
+            text-decoration: none;
+            color: var(--text);
+            transition: background 0.12s;
+        }
+
+        .voucher-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .voucher-list-item:hover {
+            background: #f8fafc;
+        }
+
+        .voucher-list-item.active {
+            background: #ccfbf1;
+            border-left: 5px solid var(--primary);
+        }
+
+        dialog.modal {
+            border: none;
+            border-radius: 10px;
+            padding: 0;
+            width: 100%;
+            max-width: 480px;
+            margin: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        dialog.modal::backdrop {
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .modal-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 1.25rem;
+        }
+
+        .modal-footer {
+            padding: 0.85rem 1.25rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        dialog.modal .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        dialog.modal .form-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.28rem;
+        }
+
+        .label-meta {
+            font-size: 0.74rem;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        .label-meta strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .field-error {
+            display: none;
+            font-size: 0.76rem;
+            color: var(--danger);
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        .form-group.is-invalid input,
+        .form-group.is-invalid select {
+            border-color: var(--danger);
+            background: #fffafa;
+        }
+
+        .form-group.is-invalid .field-error {
+            display: block;
+        }
+
+        tr.selectable-row {
+            cursor: pointer;
+            transition: background-color 0.08s;
+        }
+
+        tr.selectable-row:hover td {
+            background: #f1f5f9;
+        }
+
+        tr.selectable-row.is-selected td {
+            background: #ccfbf1 !important;
+            border-top: 1px solid #2dd4bf;
+            border-bottom: 1px solid #2dd4bf;
+        }
+
+        tr.selectable-row.is-selected td:first-child {
+            box-shadow: inset 5px 0 0 var(--primary);
+            color: var(--primary);
+        }
+
+        @media (max-width: 960px) {
+            body {
+                flex-direction: column;
+            }
+
+            aside.sidebar {
+                width: 100%;
+                min-height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .voucher-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script>
+        window.setFieldError = function (groupId, errId, errorText) {
+            const grp = document.getElementById(groupId);
+            const err = document.getElementById(errId);
+            if (!grp || !err) return true;
+            if (errorText) {
+                grp.classList.add('is-invalid');
+                err.textContent = errorText;
+                return false;
+            }
+            grp.classList.remove('is-invalid');
+            err.textContent = '';
+            return true;
+        };
+
+        window.saveRowSelection = function (row, keyAttr) {
+            if (!row) return;
+            const rows = Array.from(document.querySelectorAll('tr.selectable-row'));
+            const state = {
+                key: String(row.dataset[keyAttr] || ''),
+                idx: Math.max(0, rows.indexOf(row)),
+                scrollY: window.scrollY || 0,
+            };
+            try {
+                sessionStorage.setItem('qlvt_sel_' + location.pathname, JSON.stringify(state));
+            } catch (e) {}
+        };
+
+            window.restoreRowSelection = function (selectFn, keyAttr) {
+                const rows = Array.from(document.querySelectorAll('tr.selectable-row'));
+                if (rows.length === 0) return;
+                let saved = null;
+                try {
+                    const raw = sessionStorage.getItem('qlvt_sel_' + location.pathname);
+                    if (raw) saved = JSON.parse(raw);
+                } catch (e) {}
+
+                let target = null;
+                if (saved && saved.key) {
+                    target = rows.find(r => String(r.dataset[keyAttr] || '') === String(saved.key));
+                }
+                if (!target && saved && typeof saved.idx === 'number') {
+                    target = rows[Math.min(Math.max(0, saved.idx), rows.length - 1)];
+                }
+                if (!target) {
+                    target = rows[0];
+                }
+                selectFn(target);
+                if (saved && typeof saved.scrollY === 'number' && saved.scrollY > 0) {
+                    window.scrollTo(0, saved.scrollY);
+                }
+                target.scrollIntoView({ block: 'nearest' });
+            };
+
+            window.formatMoneyDots = function (val) {
+                const digits = String(val ?? '').replace(/\D/g, '');
+                if (!digits) return '';
+                return digits.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            };
+
+            window.parseMoneyDots = function (val) {
+                const digits = String(val ?? '').replace(/\D/g, '');
+                return digits ? Number(digits) : NaN;
+            };
+
+            window.initDetailToolbarSave = function (btnId) {
+                if (typeof window.bindMoneyInputs === 'function') {
+                    window.bindMoneyInputs(document);
+                }
+                const saveBtn = document.getElementById(btnId || 'btnToolbarSave');
+                if (!saveBtn) return;
+                const forms = Array.from(document.querySelectorAll('form.detail-edit-form'));
+                if (forms.length === 0) {
+                    saveBtn.disabled = true;
+                    return;
+                }
+
+                let activeForm = forms[0];
+                const dirtyForms = new Set();
+
+                function syncSaveButtonState() {
+                    if (dirtyForms.size > 0) {
+                        saveBtn.disabled = false;
+                        saveBtn.className = 'btn btn-primary';
+                        saveBtn.textContent = dirtyForms.size > 1
+                            ? 'Lưu thay đổi (' + dirtyForms.size + ')'
+                            : 'Lưu thay đổi';
+                    } else if (activeForm) {
+                        saveBtn.disabled = false;
+                        saveBtn.className = 'btn';
+                        saveBtn.textContent = 'Lưu';
+                    }
+                }
+
+                forms.forEach(form => {
+                    const row = form.closest('tr');
+                    const inputs = Array.from(form.elements).filter(
+                        el => el.name === 'soluong' || el.name === 'dongia'
+                    );
+                    inputs.forEach(inp => {
+                        inp.dataset.origVal = inp.value;
+                        inp.addEventListener('focus', () => {
+                            activeForm = form;
+                            document.querySelectorAll('tr.detail-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+                            if (row) row.classList.add('is-selected');
+                            syncSaveButtonState();
+                        });
+                        inp.addEventListener('input', () => {
+                            activeForm = form;
+                            const isDirty = inputs.some(i => i.value !== i.dataset.origVal);
+                            if (isDirty) {
+                                dirtyForms.add(form);
+                            } else {
+                                dirtyForms.delete(form);
+                            }
+                            syncSaveButtonState();
+                        });
+                        inp.addEventListener('keydown', (ev) => {
+                            if (ev.key === 'Enter') {
+                                ev.preventDefault();
+                                saveBtn.click();
+                            }
+                        });
+                    });
+                    if (row) {
+                        row.addEventListener('click', () => {
+                            activeForm = form;
+                            document.querySelectorAll('tr.detail-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+                            row.classList.add('is-selected');
+                            syncSaveButtonState();
+                        });
+                    }
+                });
+
+                saveBtn.addEventListener('click', async function () {
+                    const targets = dirtyForms.size > 0 ? Array.from(dirtyForms) : (activeForm ? [activeForm] : []);
+                    if (targets.length === 0) return;
+                    saveBtn.disabled = true;
+                    for (let i = 0; i < targets.length - 1; i++) {
+                        const f = targets[i];
+                        try {
+                            await fetch(f.action, { method: 'POST', body: new FormData(f) });
+                        } catch (e) {}
+                    }
+                    const lastForm = targets[targets.length - 1];
+                    if (typeof lastForm.requestSubmit === 'function') {
+                        lastForm.requestSubmit();
+                    } else {
+                        lastForm.submit();
+                    }
+                });
+
+                syncSaveButtonState();
+            };
+    </script>
+</head>
+
+<body>
+    {% if current_user %}
+    <aside class="sidebar">
+        <a href="{{ url_for('dashboard') }}" class="brand">
+            <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Logo_PTIT_University.png"
+                alt="PTIT" class="brand-logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+            <span class="brand-fallback">PTIT</span>
+            <div style="line-height: 1.2;">
+                <div>Quản Lý Vật Tư</div>
+                <div style="font-size: 0.68rem; font-weight: 600; color: var(--muted);">PTIT TP.HCM</div>
+            </div>
+        </a>
+
+        <div class="nav-group">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if active_page == 'dashboard' else '' }}">
+                Tổng quan
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title group-catalog">Danh mục</div>
+            <a href="{{ url_for('nhan_vien_page') }}"
+                class="nav-link {{ 'active' if active_page == 'nhan_vien' else '' }}">
+                Nhân viên
+            </a>
+            <a href="{{ url_for('vat_tu_page') }}" class="nav-link {{ 'active' if active_page == 'vat_tu' else '' }}">
+                Vật tư
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title group-warehouse">Giao dịch kho</div>
+            <a href="{{ url_for('dat_hang_page') }}"
+                class="nav-link {{ 'active' if active_page == 'dat_hang' else '' }}">
+                Đơn đặt hàng
+            </a>
+            <a href="{{ url_for('phieu_nhap_page') }}"
+                class="nav-link {{ 'active' if active_page == 'phieu_nhap' else '' }}">
+                Nhập kho
+            </a>
+            <a href="{{ url_for('phieu_xuat_page') }}"
+                class="nav-link {{ 'active' if active_page == 'phieu_xuat' else '' }}">
+                Xuất kho
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title group-report">Thống kê</div>
+            <a href="{{ url_for('bao_cao_page') }}"
+                class="nav-link {{ 'active' if active_page == 'bao_cao' else '' }}">
+                Báo cáo kho
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-title group-system">Hệ thống</div>
+            {% if permissions.can_manage_login %}
+            <a href="{{ url_for('accounts_page') }}"
+                class="nav-link {{ 'active' if active_page == 'accounts' else '' }}">
+                Tài khoản đăng nhập
+            </a>
+            {% else %}
+            <span class="nav-link disabled" title="Chỉ dành cho Quản trị viên">
+                <span>Tài khoản đăng nhập</span>
+                <span style="font-size: 0.75rem;">Khóa</span>
+            </span>
+            {% endif %}
+
+            {% if permissions.can_backup_db %}
+            <a href="{{ url_for('backup_page') }}" class="nav-link {{ 'active' if active_page == 'backup' else '' }}">
+                Sao lưu dữ liệu
+            </a>
+            {% else %}
+            <span class="nav-link disabled" title="Chỉ dành cho Quản trị viên">
+                <span>Sao lưu dữ liệu</span>
+                <span style="font-size: 0.75rem;">Khóa</span>
+            </span>
+            {% endif %}
+        </div>
+    </aside>
+    {% endif %}
+
+    <div class="main-area">
+        {% if current_user %}
+        <header class="topbar">
+            <h1 class="topbar-title">{% block page_heading %}Tổng quan{% endblock %}</h1>
+            <div class="user-menu">
+                <span class="pill pill-gray">Mã NV: {{ current_user.manv }}</span>
+                <span class="user-name">{{ current_user.ho_ten }}</span>
+                <span class="role-tag {{ 'role-admin' if current_user.is_admin else 'role-staff' }}">
+                    {{ 'Quản trị viên' if current_user.is_admin else 'Nhân viên' }}
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm">Đăng xuất</a>
+            </div>
+        </header>
+        {% endif %}
+
+        <main class="page-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <dialog id="confirmDeleteModal" class="modal">
+        <div class="modal-header">
+            <h3 id="confirmDeleteTitle" style="color: var(--danger);">Xác nhận xóa</h3>
+            <button type="button" class="btn btn-sm" onclick="closeConfirmDelete()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmDeleteMessage"
+                style="font-size: 0.94rem; font-weight: 500; color: var(--text); margin-bottom: 0.55rem;"></p>
+            <p id="confirmDeleteHint" style="font-size: 0.82rem; color: var(--muted);"></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeConfirmDelete()">Hủy bỏ</button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteSubmitBtn">Xác nhận xóa</button>
+        </div>
+    </dialog>
+
+    <script>
+        (function () {
+            let pendingDeleteForm = null;
+            const modal = document.getElementById('confirmDeleteModal');
+            const titleEl = document.getElementById('confirmDeleteTitle');
+            const msgEl = document.getElementById('confirmDeleteMessage');
+            const hintEl = document.getElementById('confirmDeleteHint');
+            const confirmBtn = document.getElementById('confirmDeleteSubmitBtn');
+
+            window.closeConfirmDelete = function () {
+                pendingDeleteForm = null;
+                if (modal && modal.open) modal.close();
+            };
+
+            document.addEventListener('submit', function (e) {
+                const form = e.target;
+                if (!form || !form.dataset || !form.dataset.confirm) return;
+                if (form.dataset.confirmed === '1') {
+                    form.dataset.confirmed = '';
+                    return;
+                }
+                e.preventDefault();
+                pendingDeleteForm = form;
+                if (titleEl) titleEl.textContent = form.dataset.confirmTitle || 'Xác nhận xóa';
+                if (confirmBtn) confirmBtn.textContent = form.dataset.confirmBtn || 'Xác nhận xóa';
+                if (msgEl) msgEl.textContent = form.dataset.confirm;
+                if (hintEl) {
+                    hintEl.textContent = form.dataset.confirmHint ||
+                    'Sau khi thực hiện, bạn vẫn có thể bấm nút "↶ Hoàn tác" để khôi phục lại dữ liệu.';
+                }
+                if (modal && typeof modal.showModal === 'function') {
+                    modal.showModal();
+                } else if (window.confirm(form.dataset.confirm)) {
+                    form.dataset.confirmed = '1';
+                    form.submit();
+                }
+            });
+
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function () {
+                    if (!pendingDeleteForm) return;
+                    const formToSubmit = pendingDeleteForm;
+                    pendingDeleteForm = null;
+                    if (modal && modal.open) modal.close();
+                    formToSubmit.dataset.confirmed = '1';
+                    if (typeof formToSubmit.requestSubmit === 'function') {
+                        formToSubmit.requestSubmit();
+                    } else {
+                        formToSubmit.submit();
+                    }
+                });
+            }
+
+            if (modal) {
+                modal.addEventListener('click', function (e) {
+                    const rect = modal.getBoundingClientRect();
+                    const inDialog = (
+                        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+                        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+                    );
+                    if (!inDialog) window.closeConfirmDelete();
+                });
+            }
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+                if (document.querySelector('dialog[open]')) return;
+                const activeEl = document.activeElement;
+                if (activeEl && ['INPUT', 'SELECT', 'TEXTAREA'].includes(activeEl.tagName)) return;
+
+                const delta = e.key === 'ArrowDown' ? 1 : -1;
+                const rows = Array.from(document.querySelectorAll('tr.selectable-row'));
+                if (rows.length > 0) {
+                    const curIdx = rows.findIndex(r => r.classList.contains('is-selected'));
+                    const nextIdx = curIdx === -1
+                        ? 0
+                        : Math.max(0, Math.min(rows.length - 1, curIdx + delta));
+                    if (nextIdx !== curIdx) {
+                        e.preventDefault();
+                        rows[nextIdx].click();
+                        rows[nextIdx].scrollIntoView({ block: 'nearest' });
+                    }
+                    return;
+                }
+
+                const vouchers = Array.from(document.querySelectorAll('.voucher-list-item'));
+                if (vouchers.length > 0) {
+                    const curIdx = vouchers.findIndex(v => v.classList.contains('active'));
+                    const nextIdx = curIdx === -1
+                        ? 0
+                        : Math.max(0, Math.min(vouchers.length - 1, curIdx + delta));
+                    if (nextIdx !== curIdx) {
+                        e.preventDefault();
+                        vouchers[nextIdx].click();
+                    }
+                }
+            });
+
+            window.bindMoneyInputs = function (root) {
+                (root || document).querySelectorAll('input.money-input').forEach(inp => {
+                    if (inp.dataset.moneyBound === '1') return;
+                    inp.dataset.moneyBound = '1';
+                    if (inp.value) {
+                        inp.value = window.formatMoneyDots(inp.value);
+                    }
+                    inp.addEventListener('input', function () {
+                        const selStart = inp.selectionStart || 0;
+                        const digitsBefore = inp.value.slice(0, selStart).replace(/\D/g, '').length;
+                        const formatted = window.formatMoneyDots(inp.value);
+                        inp.value = formatted;
+                        let pos = 0;
+                        let seenDigits = 0;
+                        while (pos < formatted.length && seenDigits < digitsBefore) {
+                            if (/\d/.test(formatted[pos])) seenDigits++;
+                            pos++;
+                        }
+                        try {
+                            inp.setSelectionRange(pos, pos);
+                        } catch (e) {}
+                    });
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                bindMoneyInputs(document);
+            });
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}Nhân viên — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Danh mục nhân viên{% endblock %}
+{% block content %}
+<style>
+    .emp-sub {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+    }
+</style>
+
+<div class="page-toolbar">
+    <div class="toolbar-left">
+        {% if current_user.is_admin %}
+        <button type="button" class="btn btn-primary" onclick="openEmployeeModal()">+ Thêm</button>
+        <button type="button" class="btn" id="btnToolbarEdit" onclick="editSelectedEmployee()" disabled>
+            Sửa
+        </button>
+        <form method="post" id="toolbarActionForm" style="display:inline;">
+            <input type="hidden" name="resigned" id="toolbarResignedInput" value="1">
+            <button type="submit" class="btn btn-danger-ghost" id="btnToolbarDelete" disabled>
+                Xóa
+            </button>
+        </form>
+        <form method="post" action="{{ url_for('nhan_vien_undo') }}" style="display:inline;">
+            <button type="submit" class="btn btn-undo" {% if not can_undo %}disabled{% endif %}
+                title="{{ next_undo or 'Không có thao tác nào cần hoàn tác' }}">
+                ↶ Hoàn tác{% if undo_count %} ({{ undo_count }}){% endif %}
+            </button>
+        </form>
+        {% else %}
+        <span style="font-size: 0.82rem; color: #64748b;">
+            🔒 Chế độ tra cứu (chỉ Quản trị viên mới được phép thêm, sửa, xóa hoặc chuyển nghỉ việc nhân viên)
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="toolbar-right">
+        <form method="get" action="{{ url_for('nhan_vien_page') }}" style="display: flex; gap: 0.4rem;">
+            <input type="search" name="q" value="{{ keyword }}" placeholder="Tìm mã, họ tên hoặc địa chỉ..."
+                style="width: 240px;">
+            <button type="submit" class="btn">Tìm</button>
+            {% if keyword %}
+            <a href="{{ url_for('nhan_vien_page') }}" class="btn">Xóa lọc</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Mã NV</th>
+                    <th>Họ và tên</th>
+                    <th>Ngày sinh</th>
+                    <th>Địa chỉ</th>
+                    <th class="num">Mức lương</th>
+                    <th style="width: 140px;">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nv in rows %}
+                {% set is_self = (nv.MANV|string) == (current_user.manv|string) %}
+                {% set ds = (nv.NGAYSINH|string) if nv.NGAYSINH else '' %}
+                <tr class="selectable-row emp-row" style="{{ 'opacity: 0.65;' if nv.TrangThaiXoa else '' }}"
+                    data-manv="{{ nv.MANV }}" data-ho="{{ nv.HO }}" data-ten="{{ nv.TEN }}"
+                    data-ngaysinh="{{ ds[:10] }}" data-luong="{{ '{:.0f}'.format(nv.LUONG) }}"
+                    data-diachi="{{ nv.DIACHI or '' }}" data-ghichu="{{ nv.GHICHU or '' }}"
+                    data-is-self="{{ '1' if is_self else '0' }}"
+                    data-resigned="{{ '1' if nv.TrangThaiXoa else '0' }}"
+                    data-can-delete="{{ '1' if nv.CoTheXoa else '0' }}"
+                    data-sophieu="{{ nv.SoPhieuDaLap }}"
+                    data-cotaikhoan="{{ '1' if nv.CoTaiKhoan else '0' }}"
+                    data-delete-url="{{ url_for('nhan_vien_delete', manv=nv.MANV) }}"
+                    data-status-url="{{ url_for('nhan_vien_status', manv=nv.MANV) }}"
+                    onclick="selectEmployeeRow(this)" ondblclick="selectEmployeeRow(this); editSelectedEmployee();">
+                    <td><strong>#{{ nv.MANV }}</strong></td>
+                    <td>
+                        <strong>{{ nv.HO }} {{ nv.TEN }}</strong>
+                        {% if is_self %}
+                        <span class="pill pill-gray" style="margin-left: 0.3rem;" title="Tài khoản bạn đang đăng nhập">Bạn</span>
+                        {% endif %}
+                        {% if nv.GHICHU %}
+                        <div class="emp-sub">{{ nv.GHICHU }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap;">
+                        {% if ds|length >= 10 %}
+                        {{ ds[8:10] }}/{{ ds[5:7] }}/{{ ds[0:4] }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td>{{ nv.DIACHI or '—' }}</td>
+                    <td class="num" style="white-space: nowrap;"><strong>{{ "{:,.0f}".format(nv.LUONG) }} đ</strong></td>
+                    <td style="white-space: nowrap;">
+                        {% if nv.TrangThaiXoa %}
+                        <span class="pill pill-red">Đã nghỉ việc</span>
+                        {% else %}
+                        <span class="pill pill-green">Đang làm việc</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-state">Không tìm thấy nhân viên nào phù hợp.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<dialog id="empModal" class="modal">
+    <form method="post" action="{{ url_for('nhan_vien_save') }}" id="empForm" novalidate>
+        <div class="modal-header">
+            <h3 id="empModalTitle">Thêm nhân viên mới</h3>
+            <button type="button" class="btn btn-sm" onclick="document.getElementById('empModal').close()">Đóng</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="emp_mode" name="mode" value="create">
+
+            <div class="form-row">
+                <div class="form-group" id="grp_manv">
+                    <label for="emp_manv">
+                        <span>Mã nhân viên</span>
+                        <span class="label-meta" id="meta_manv">Số nguyên dương</span>
+                    </label>
+                    <input type="number" id="emp_manv" name="manv" min="1" step="1" value="{{ suggested_manv }}" required>
+                    <div class="field-error" id="err_manv"></div>
+                </div>
+
+                <div class="form-group" id="grp_ngaysinh">
+                    <label for="emp_ngaysinh">
+                        <span>Ngày sinh</span>
+                        <span class="label-meta"><strong id="emp_age_badge"></strong> · 18–65 tuổi</span>
+                    </label>
+                    <input type="date" id="emp_ngaysinh" name="ngaysinh" min="{{ min_dob }}" max="{{ max_dob }}"
+                        value="1998-01-01" required>
+                    <div class="field-error" id="err_ngaysinh"></div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group" id="grp_ho">
+                    <label for="emp_ho">
+                        <span>Họ và tên đệm</span>
+                        <span class="label-meta">Chỉ chữ cái</span>
+                    </label>
+                    <input type="text" id="emp_ho" name="ho" maxlength="40" required placeholder="Ví dụ: Nguyễn Văn">
+                    <div class="field-error" id="err_ho"></div>
+                </div>
+
+                <div class="form-group" id="grp_ten">
+                    <label for="emp_ten">
+                        <span>Tên</span>
+                        <span class="label-meta">1 từ chữ cái</span>
+                    </label>
+                    <input type="text" id="emp_ten" name="ten" maxlength="10" required placeholder="Ví dụ: An">
+                    <div class="field-error" id="err_ten"></div>
+                </div>
+            </div>
+
+            <div class="form-group" id="grp_luong">
+                <label for="emp_luong">
+                    <span>Mức lương (đ)</span>
+                    <span class="label-meta"><strong id="emp_luong_badge"></strong> · Tối thiểu 5.000.000 đ</span>
+                </label>
+                <input type="text" inputmode="numeric" class="money-input" id="emp_luong" name="luong" value="7.000.000" required>
+                <div class="field-error" id="err_luong"></div>
+            </div>
+
+            <div class="form-group" id="grp_diachi">
+                <label for="emp_diachi">
+                    <span>Địa chỉ</span>
+                    <span class="label-meta">Chữ, số, dấu , . / - (≤ 100 ký tự)</span>
+                </label>
+                <input type="text" id="emp_diachi" name="diachi" maxlength="100" required
+                    placeholder="Ví dụ: 123 Nguyễn Văn Cừ, Quận 5, TP.HCM">
+                <div class="field-error" id="err_diachi"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="emp_ghichu">
+                    <span>Ghi chú</span>
+                    <span class="label-meta">Không bắt buộc</span>
+                </label>
+                <input type="text" id="emp_ghichu" name="ghichu"
+                    placeholder="Chức vụ, bộ phận làm việc">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" onclick="document.getElementById('empModal').close()">Hủy</button>
+            <button type="submit" class="btn btn-primary">Lưu thông tin</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const suggestedManv = "{{ suggested_manv }}";
+    const defaultDob = "{{ max_dob[:4]|int - 6 }}-01-01";
+    const existingManvs = new Set({{ (existing_manvs or []) | tojson }});
+    const letterWordRegex = /^[\p{L}]+$/u;
+    const addressValidCharsRegex = /^[\p{L}\p{N}\s,./\-()]+$/u;
+    const hasLetterRegex = /\p{L}/u;
+
+    function validateManv() {
+        const mode = document.getElementById('emp_mode').value;
+        const raw = document.getElementById('emp_manv').value.trim();
+        if (!raw || !/^\d+$/.test(raw) || Number(raw) <= 0) {
+            return setFieldError('grp_manv', 'err_manv', 'Mã nhân viên phải là số nguyên lớn hơn 0.');
+        }
+        if (mode === 'create' && existingManvs.has(Number(raw))) {
+            return setFieldError('grp_manv', 'err_manv', 'Mã NV ' + raw + ' đã tồn tại (gợi ý mã trống: ' + suggestedManv + ').');
+        }
+        return setFieldError('grp_manv', 'err_manv', '');
+    }
+
+    function validateHo() {
+        const val = document.getElementById('emp_ho').value.trim().replace(/\s+/g, ' ');
+        if (!val) {
+            return setFieldError('grp_ho', 'err_ho', 'Vui lòng nhập họ và tên đệm.');
+        }
+        if (val.length > 40) {
+            return setFieldError('grp_ho', 'err_ho', 'Họ và tên đệm tối đa 40 ký tự.');
+        }
+        const words = val.split(' ');
+        if (!words.every(w => letterWordRegex.test(w))) {
+            return setFieldError('grp_ho', 'err_ho', 'Chỉ được chứa chữ cái, không chứa số hoặc ký tự đặc biệt.');
+        }
+        return setFieldError('grp_ho', 'err_ho', '');
+    }
+
+    function validateTen() {
+        const val = document.getElementById('emp_ten').value.trim();
+        if (!val) {
+            return setFieldError('grp_ten', 'err_ten', 'Vui lòng nhập tên nhân viên.');
+        }
+        if (/\s/.test(val)) {
+            return setFieldError('grp_ten', 'err_ten', 'Chỉ nhập 1 từ tên chính (tên đệm nhập ở ô bên trái).');
+        }
+        if (val.length > 10) {
+            return setFieldError('grp_ten', 'err_ten', 'Tên tối đa 10 ký tự.');
+        }
+        if (!letterWordRegex.test(val)) {
+            return setFieldError('grp_ten', 'err_ten', 'Tên chỉ được chứa chữ cái.');
+        }
+        return setFieldError('grp_ten', 'err_ten', '');
+    }
+
+    function validateNgaySinh() {
+        const raw = document.getElementById('emp_ngaysinh').value;
+        const badge = document.getElementById('emp_age_badge');
+        if (!raw) {
+            if (badge) badge.textContent = '';
+            return setFieldError('grp_ngaysinh', 'err_ngaysinh', 'Vui lòng chọn ngày sinh.');
+        }
+        const dob = new Date(raw + 'T00:00:00');
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+        if (badge) badge.textContent = !isNaN(age) ? age + ' tuổi' : '';
+
+        if (isNaN(age) || dob > today) {
+            return setFieldError('grp_ngaysinh', 'err_ngaysinh', 'Ngày sinh không hợp lệ.');
+        }
+        if (age < 18) {
+            return setFieldError('grp_ngaysinh', 'err_ngaysinh', 'Chưa đủ 18 tuổi (hiện tại ' + age + ' tuổi).');
+        }
+        if (age > 65) {
+            return setFieldError('grp_ngaysinh', 'err_ngaysinh', 'Vượt quá độ tuổi lao động 65 tuổi (hiện tại ' + age + ' tuổi).');
+        }
+        return setFieldError('grp_ngaysinh', 'err_ngaysinh', '');
+    }
+
+    function validateLuong() {
+        const raw = document.getElementById('emp_luong').value.trim();
+        const badge = document.getElementById('emp_luong_badge');
+        const num = window.parseMoneyDots ? window.parseMoneyDots(raw) : Number(raw.replace(/\D/g, ''));
+        if (badge) {
+            badge.textContent = (!isNaN(num) && num > 0) ? num.toLocaleString('vi-VN') + ' đ' : '';
+        }
+        if (!raw || isNaN(num)) {
+            return setFieldError('grp_luong', 'err_luong', 'Vui lòng nhập mức lương hợp lệ.');
+        }
+        if (num < 5000000) {
+            return setFieldError('grp_luong', 'err_luong', 'Mức lương phải từ 5.000.000 đ trở lên.');
+        }
+        return setFieldError('grp_luong', 'err_luong', '');
+    }
+
+    function validateDiaChi() {
+        const val = document.getElementById('emp_diachi').value.trim();
+        if (!val) {
+            return setFieldError('grp_diachi', 'err_diachi', 'Vui lòng nhập địa chỉ nhân viên.');
+        }
+        if (val.length > 100) {
+            return setFieldError('grp_diachi', 'err_diachi', 'Địa chỉ tối đa 100 ký tự.');
+        }
+        if (!addressValidCharsRegex.test(val)) {
+            return setFieldError('grp_diachi', 'err_diachi', 'Chỉ được chứa chữ, số và các dấu (, . / -), không chứa ký tự đặc biệt.');
+        }
+        if (!hasLetterRegex.test(val)) {
+            return setFieldError('grp_diachi', 'err_diachi', 'Địa chỉ phải có tên đường hoặc khu vực (không chỉ nhập số/dấu).');
+        }
+        return setFieldError('grp_diachi', 'err_diachi', '');
+    }
+
+    function resetValidationStates() {
+        ['manv', 'ngaysinh', 'ho', 'ten', 'luong', 'diachi'].forEach(key => {
+            setFieldError('grp_' + key, 'err_' + key, '');
+        });
+        validateNgaySinh();
+        validateLuong();
+    }
+
+    let selectedRow = null;
+
+    function selectEmployeeRow(row) {
+        document.querySelectorAll('tr.emp-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+        selectedRow = row;
+        if (!row) return;
+        row.classList.add('is-selected');
+        saveRowSelection(row, 'manv');
+
+        const isAdminUser = {{ 'true' if current_user.is_admin else 'false' }};
+        if (!isAdminUser) return;
+
+        const d = row.dataset;
+        const fullName = d.ho + ' ' + d.ten;
+        const editBtn = document.getElementById('btnToolbarEdit');
+        const actionForm = document.getElementById('toolbarActionForm');
+        const deleteBtn = document.getElementById('btnToolbarDelete');
+        const resignedInput = document.getElementById('toolbarResignedInput');
+
+        editBtn.disabled = false;
+        editBtn.title = 'Sửa thông tin: #' + d.manv + ' - ' + fullName;
+
+        if (d.isSelf === '1') {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Xóa';
+            deleteBtn.className = 'btn';
+            deleteBtn.title = 'Không thể xóa hoặc chuyển nghỉ việc tài khoản đang đăng nhập';
+            actionForm.removeAttribute('data-confirm');
+        } else if (d.resigned === '1') {
+            actionForm.action = d.statusUrl;
+            resignedInput.value = '0';
+            actionForm.removeAttribute('data-confirm');
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Làm việc lại';
+            deleteBtn.className = 'btn';
+            deleteBtn.title = 'Chuyển nhân viên #' + d.manv + ' về trạng thái Đang làm việc';
+        } else if (d.canDelete === '1') {
+            actionForm.action = d.deleteUrl;
+            actionForm.dataset.confirmTitle = 'Xác nhận xóa nhân viên';
+            actionForm.dataset.confirmBtn = 'Xác nhận xóa';
+            actionForm.dataset.confirm = 'Bạn có chắc chắn muốn xóa nhân viên "' + fullName + '" (Mã NV: ' + d.manv + ') không?';
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Xóa';
+            deleteBtn.className = 'btn btn-danger-ghost';
+            deleteBtn.title = 'Xóa nhân viên #' + d.manv + ' (' + fullName + ')';
+        } else {
+            actionForm.action = d.statusUrl;
+            resignedInput.value = '1';
+            actionForm.dataset.confirmTitle = 'Chuyển trạng thái nghỉ việc';
+            actionForm.dataset.confirmBtn = 'Chuyển nghỉ việc';
+            const extra = d.cotaikhoan === '1' ? ' và tự động thu hồi tài khoản đăng nhập' : '';
+            actionForm.dataset.confirm = 'Nhân viên "' + fullName + '" đã phát sinh dữ liệu (' + d.sophieu + ' phiếu) nên không xóa vật lý. Chuyển sang trạng thái Đã nghỉ việc' + extra + '?';
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Nghỉ việc';
+            deleteBtn.className = 'btn btn-danger-ghost';
+            deleteBtn.title = 'Chuyển trạng thái nghỉ việc cho #' + d.manv;
+        }
+    }
+
+    function openEmployeeModal() {
+        if (!{{ 'true' if current_user.is_admin else 'false' }}) return;
+        document.getElementById('empModalTitle').textContent = 'Thêm nhân viên mới';
+        document.getElementById('emp_mode').value = 'create';
+        const manvInput = document.getElementById('emp_manv');
+        manvInput.value = suggestedManv;
+        manvInput.readOnly = false;
+        document.getElementById('meta_manv').textContent = 'Số nguyên dương';
+        document.getElementById('emp_ho').value = '';
+        document.getElementById('emp_ten').value = '';
+        document.getElementById('emp_ngaysinh').value = defaultDob;
+        document.getElementById('emp_luong').value = '7.000.000';
+        document.getElementById('emp_diachi').value = '';
+        document.getElementById('emp_ghichu').value = '';
+        resetValidationStates();
+        document.getElementById('empModal').showModal();
+        document.getElementById('emp_ho').focus();
+    }
+
+    function editSelectedEmployee() {
+        if (!{{ 'true' if current_user.is_admin else 'false' }}) return;
+        if (!selectedRow) return;
+        const d = selectedRow.dataset;
+        document.getElementById('empModalTitle').textContent = 'Cập nhật thông tin nhân viên';
+        document.getElementById('emp_mode').value = 'update';
+        const manvInput = document.getElementById('emp_manv');
+        manvInput.value = d.manv;
+        manvInput.readOnly = true;
+        document.getElementById('meta_manv').textContent = '';
+        document.getElementById('emp_ho').value = d.ho;
+        document.getElementById('emp_ten').value = d.ten;
+        document.getElementById('emp_ngaysinh').value = d.ngaysinh;
+        document.getElementById('emp_luong').value = window.formatMoneyDots ? window.formatMoneyDots(d.luong) : d.luong;
+        document.getElementById('emp_diachi').value = d.diachi;
+        document.getElementById('emp_ghichu').value = d.ghichu;
+        resetValidationStates();
+        document.getElementById('empModal').showModal();
+        document.getElementById('emp_ho').focus();
+    }
+
+    restoreRowSelection(selectEmployeeRow, 'manv');
+
+    document.getElementById('emp_manv').addEventListener('input', validateManv);
+    document.getElementById('emp_ho').addEventListener('input', validateHo);
+    document.getElementById('emp_ten').addEventListener('input', validateTen);
+    document.getElementById('emp_ngaysinh').addEventListener('input', validateNgaySinh);
+    document.getElementById('emp_luong').addEventListener('input', validateLuong);
+    document.getElementById('emp_diachi').addEventListener('input', validateDiaChi);
+
+    document.getElementById('empForm').addEventListener('submit', function (e) {
+        const checks = [
+            [validateManv(), 'emp_manv'],
+            [validateNgaySinh(), 'emp_ngaysinh'],
+            [validateHo(), 'emp_ho'],
+            [validateTen(), 'emp_ten'],
+            [validateLuong(), 'emp_luong'],
+            [validateDiaChi(), 'emp_diachi'],
+        ];
+        const firstInvalid = checks.find(([ok]) => !ok);
+        if (firstInvalid) {
+            e.preventDefault();
+            document.getElementById(firstInvalid[1]).focus();
+        }
+    });
+</script>
+{% endblock %}

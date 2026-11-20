@@ -1,0 +1,733 @@
+{% extends "base.html" %}
+{% block title %}Báo cáo kho — Quản Lý Vật Tư{% endblock %}
+{% block page_heading %}Báo cáo & Thống kê kho{% endblock %}
+{% block content %}
+<style>
+    .report-toolbar {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .report-toolbar-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .report-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .report-tab {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.42rem 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: border-color 0.12s, background-color 0.12s;
+    }
+
+    .report-tab:hover {
+        border-color: #64748b;
+        background: #f8fafc;
+        color: #0f172a;
+    }
+
+    .report-tab.active {
+        border-color: #0f172a;
+        background: #0f172a;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    .report-filter-bar {
+        display: flex;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .report-filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .report-filter-group label {
+        margin-bottom: 0;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    /* Tờ báo cáo đơn sắc (Monochrome), chuẩn văn bản in ấn */
+    .report-sheet {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 2.25rem 2.5rem;
+        color: #0f172a;
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
+    .report-doc-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid #0f172a;
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .report-doc-org {
+        text-align: center;
+    }
+
+    .report-doc-org .org-name {
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #0f172a;
+    }
+
+    .report-doc-org .org-sub {
+        display: inline-block;
+        font-weight: 600;
+        padding-bottom: 0.2rem;
+        border-bottom: 1px solid #0f172a;
+    }
+
+    .report-doc-nation {
+        text-align: center;
+    }
+
+    .report-doc-nation .nation-title {
+        display: block;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .report-doc-nation .nation-motto {
+        display: inline-block;
+        font-weight: 600;
+        padding-bottom: 0.2rem;
+        border-bottom: 1px solid #0f172a;
+    }
+
+    .report-doc-title {
+        text-align: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .report-doc-title h3 {
+        font-size: 1.18rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.01em;
+        color: #0f172a;
+        margin-bottom: 0.25rem;
+    }
+
+    .report-doc-title p {
+        font-size: 0.84rem;
+        color: #334155;
+        font-style: italic;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #64748b;
+        font-size: 0.82rem;
+        color: #0f172a;
+    }
+
+    .report-table th {
+        background: #f8fafc;
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.01em;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid #64748b;
+        white-space: nowrap;
+    }
+
+    .report-table td {
+        padding: 0.5rem 0.65rem;
+        border: 1px solid #cbd5e1;
+        color: #0f172a;
+        vertical-align: middle;
+    }
+
+    .report-table tbody tr:hover {
+        background: #fafafa;
+    }
+
+    .report-table .center {
+        text-align: center;
+    }
+
+    .report-table .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .group-header-row td {
+        background: #f1f5f9;
+        color: #0f172a;
+        font-weight: 700;
+        border-top: 1px solid #64748b;
+        border-bottom: 1px solid #94a3b8;
+    }
+
+    .group-subtotal-row td {
+        background: #fafafa;
+        font-weight: 600;
+        color: #0f172a;
+        border-top: 1px solid #94a3b8;
+    }
+
+    .report-table tfoot td {
+        background: #f8fafc;
+        font-weight: 700;
+        color: #0f172a;
+        border: 1px solid #64748b;
+    }
+
+    .report-footer {
+        margin-top: 1.5rem;
+        page-break-inside: avoid;
+    }
+
+    .report-date-place {
+        text-align: right;
+        font-size: 0.84rem;
+        font-style: italic;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
+        padding-right: 1rem;
+    }
+
+    .report-signatures {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        text-align: center;
+        font-size: 0.84rem;
+        color: #0f172a;
+    }
+
+    .report-signatures strong {
+        display: block;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .report-signatures span {
+        color: #475569;
+        font-size: 0.76rem;
+        font-style: italic;
+    }
+
+    .report-sign-space {
+        height: 3.4rem;
+    }
+
+    @media print {
+        body {
+            background: #fff !important;
+        }
+        .sidebar,
+        .topbar,
+        .alert,
+        .no-print {
+            display: none !important;
+        }
+        .main-area,
+        .page-body {
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+        .report-sheet {
+            border: none !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+        .report-table,
+        .report-table th,
+        .report-table td,
+        .report-table tfoot td {
+            border-color: #000 !important;
+        }
+        .report-table th,
+        .group-header-row td,
+        .report-table tfoot td {
+            background: #f1f5f9 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+
+<div class="report-toolbar no-print">
+    <div class="report-toolbar-top">
+        <div class="report-tabs">
+            {% for item in catalog %}
+            <a href="{{ url_for('bao_cao_page', type=item.slug, loai=loai, tu_ngay=tu_ngay, den_ngay=den_ngay, nam=nam) }}"
+                class="report-tab {{ 'active' if selected_slug == item.slug else '' }}">
+                {{ item.title }}
+            </a>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn" onclick="window.print()" style="border-color: #0f172a; color: #0f172a; font-weight: 600;">
+            In báo cáo / Xuất PDF
+        </button>
+    </div>
+
+    {% if report_meta.params %}
+    <form method="get" action="{{ url_for('bao_cao_page') }}" class="report-filter-bar" id="reportFilterForm"
+          onsubmit="return validateReportParams();">
+        <input type="hidden" name="type" value="{{ selected_slug }}">
+
+        {% if 'tu_ngay' in report_meta.params %}
+        <div class="report-filter-group">
+            <label for="fTuNgay">Từ ngày</label>
+            <input type="date" id="fTuNgay" name="tu_ngay" value="{{ tu_ngay }}" required style="width: 155px;">
+        </div>
+        {% endif %}
+
+        {% if 'den_ngay' in report_meta.params %}
+        <div class="report-filter-group">
+            <label for="fDenNgay">Đến ngày</label>
+            <input type="date" id="fDenNgay" name="den_ngay" value="{{ den_ngay }}" required style="width: 155px;">
+        </div>
+        {% endif %}
+
+        {% if 'loai' in report_meta.params %}
+        <div class="report-filter-group">
+            <label for="fLoai">Loại chứng từ</label>
+            <select id="fLoai" name="loai" style="min-width: 170px;">
+                <option value="T" {% if loai == 'T' %}selected{% endif %}>Cả hai (Nhập &amp; Xuất)</option>
+                <option value="N" {% if loai == 'N' %}selected{% endif %}>Chỉ Phiếu Nhập</option>
+                <option value="X" {% if loai == 'X' %}selected{% endif %}>Chỉ Phiếu Xuất</option>
+            </select>
+        </div>
+        {% endif %}
+
+        {% if 'nam' in report_meta.params %}
+        <div class="report-filter-group">
+            <label for="fNam">Năm thống kê</label>
+            <input type="number" id="fNam" name="nam" min="1900" max="9998" value="{{ nam }}" required style="width: 115px;">
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn" style="border-color: #0f172a; background: #0f172a; color: #fff;">Xem báo cáo</button>
+        <span id="filterParamError" class="field-error" style="align-self: center;"></span>
+    </form>
+    {% endif %}
+</div>
+
+<div class="report-sheet">
+    <div class="report-doc-header">
+        <div class="report-doc-org">
+            <div class="org-name">HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG</div>
+            <div class="org-sub">CƠ SỞ TẠI TP. HỒ CHÍ MINH — BỘ PHẬN KHO VẬT TƯ</div>
+        </div>
+        <div class="report-doc-nation">
+            <span class="nation-title">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</span>
+            <span class="nation-motto">Độc lập - Tự do - Hạnh phúc</span>
+        </div>
+    </div>
+
+    <div class="report-doc-title">
+        <h3>
+            {% if selected_slug == 'bang-ke-nhap-xuat' %}
+                BẢNG KÊ CHI TIẾT SỐ LƯỢNG – TRỊ GIÁ HÀNG
+                {% if loai == 'N' %}NHẬP KHO{% elif loai == 'X' %}XUẤT KHO{% else %}NHẬP / XUẤT KHO{% endif %}
+            {% else %}
+                {{ report_meta.title }}
+            {% endif %}
+        </h3>
+        <p>
+            {% if 'tu_ngay' in report_meta.params and 'den_ngay' in report_meta.params %}
+                Từ ngày {{ tu_ngay_vn }} đến ngày {{ den_ngay_vn }}
+            {% elif 'nam' in report_meta.params %}
+                Năm thống kê: {{ nam }}
+            {% else %}
+                {{ report_meta.subtitle }}
+            {% endif %}
+        </p>
+    </div>
+
+    {% if selected_slug == 'nhan-vien' %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 48px;">STT</th>
+                    <th class="center" style="width: 75px;">Mã NV</th>
+                    <th>Họ và tên đệm</th>
+                    <th>Tên</th>
+                    <th>Địa chỉ</th>
+                    <th class="center" style="width: 105px;">Ngày sinh</th>
+                    <th class="num" style="width: 135px;">Lương (VNĐ)</th>
+                    <th>Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="center">{{ loop.index }}</td>
+                    <td class="center">{{ r.MANV }}</td>
+                    <td>{{ r.HO }}</td>
+                    <td><strong>{{ r.TEN }}</strong></td>
+                    <td>{{ r.DIACHI or '' }}</td>
+                    <td class="center">{{ r.NGAYSINH.strftime('%d/%m/%Y') if r.NGAYSINH and r.NGAYSINH.strftime is defined else (r.NGAYSINH or '') }}</td>
+                    <td class="num">{{ "{:,.0f}".format(r.LUONG or 0).replace(",", ".") }}</td>
+                    <td>
+                        {{ r.GHICHU or '' }}{% if r.TrangThaiXoa == 1 %}{{ ' (Đã nghỉ việc)' if r.GHICHU else 'Đã nghỉ việc' }}{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="empty-state">Không có dữ liệu.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if rows %}
+            <tfoot>
+                <tr>
+                    <td colspan="6">
+                        Tổng cộng: {{ summary.total_rows }} nhân viên ({{ summary.active_count }} đang làm việc, {{ summary.inactive_count }} đã nghỉ)
+                    </td>
+                    <td class="num">{{ "{:,.0f}".format(summary.total_salary or 0).replace(",", ".") }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% elif selected_slug == 'vat-tu' %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 55px;">STT</th>
+                    <th class="center" style="width: 120px;">Mã vật tư</th>
+                    <th>Tên vật tư</th>
+                    <th class="center" style="width: 130px;">Đơn vị tính</th>
+                    <th class="num" style="width: 150px;">Số lượng tồn</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="center">{{ loop.index }}</td>
+                    <td class="center">{{ r.MAVT }}</td>
+                    <td>{{ r.TENVT }}</td>
+                    <td class="center">{{ r.DVT }}</td>
+                    <td class="num">{{ "{:,}".format(r.Soluongton or 0).replace(",", ".") }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-state">Không có dữ liệu.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if rows %}
+            <tfoot>
+                <tr>
+                    <td colspan="4">Tổng cộng ({{ summary.total_rows }} danh mục vật tư)</td>
+                    <td class="num">{{ "{:,}".format(summary.total_stock or 0).replace(",", ".") }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% elif selected_slug == 'ddh-chua-nhap-het' %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 50px;">STT</th>
+                    <th class="center" style="width: 95px;">Mã VT</th>
+                    <th>Tên vật tư</th>
+                    <th class="center" style="width: 95px;">ĐVT</th>
+                    <th class="num" style="width: 110px;">SL Đặt</th>
+                    <th class="num" style="width: 110px;">SL Đã nhập</th>
+                    <th class="num" style="width: 110px;">SL Còn thiếu</th>
+                    <th class="center" style="width: 135px;">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grp in grouped_rows %}
+                <tr class="group-header-row">
+                    <td colspan="8">
+                        Đơn hàng: {{ grp.MasoDDH }}
+                        &nbsp;·&nbsp; Ngày đặt: {{ grp.NGAY.strftime('%d/%m/%Y') if grp.NGAY and grp.NGAY.strftime is defined else grp.NGAY }}
+                        &nbsp;·&nbsp; Nhà cung cấp: {{ grp.NhaCC }}
+                        &nbsp;·&nbsp; Người lập: {{ grp.NVLap }}
+                    </td>
+                </tr>
+                {% for item in grp["items"] %}
+                <tr>
+                    <td class="center">{{ loop.index }}</td>
+                    <td class="center">{{ item.MAVT }}</td>
+                    <td>{{ item.TENVT }}</td>
+                    <td class="center">{{ item.DVT }}</td>
+                    <td class="num">{{ "{:,}".format(item.SLDat or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(item.SLDaNhap or 0).replace(",", ".") }}</td>
+                    <td class="num"><strong>{{ "{:,}".format(item.SLConThieu or 0).replace(",", ".") }}</strong></td>
+                    <td class="center">{{ item.TrangThai }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="group-subtotal-row">
+                    <td colspan="4" class="num">Cộng đơn {{ grp.MasoDDH }}:</td>
+                    <td class="num">{{ "{:,}".format(grp.sub_dat).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(grp.sub_da_nhap).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(grp.sub_con_thieu).replace(",", ".") }}</td>
+                    <td></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="empty-state">Không có dữ liệu (tất cả đơn đặt hàng đều đã nhập đủ).</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if grouped_rows %}
+            <tfoot>
+                <tr>
+                    <td colspan="4">
+                        TỔNG CỘNG ({{ summary.total_orders }} đơn đặt hàng / {{ summary.total_rows }} mặt hàng còn thiếu)
+                    </td>
+                    <td class="num">{{ "{:,}".format(summary.total_dat or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(summary.total_da_nhap or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(summary.total_con_thieu or 0).replace(",", ".") }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% elif selected_slug == 'bang-ke-nhap-xuat' %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 48px;">STT</th>
+                    <th class="center" style="width: 75px;">Loại</th>
+                    <th class="center" style="width: 100px;">Ngày</th>
+                    <th class="center" style="width: 105px;">Mã phiếu</th>
+                    <th class="center" style="width: 85px;">Mã VT</th>
+                    <th>Tên vật tư</th>
+                    <th class="center" style="width: 80px;">ĐVT</th>
+                    <th class="num" style="width: 100px;">Số lượng</th>
+                    <th class="num" style="width: 120px;">Đơn giá</th>
+                    <th class="num" style="width: 145px;">Trị giá (VNĐ)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grp in grouped_rows %}
+                <tr class="group-header-row">
+                    <td colspan="10">Tháng {{ grp.ThangNam }}</td>
+                </tr>
+                {% for item in grp["items"] %}
+                <tr>
+                    <td class="center">{{ loop.index }}</td>
+                    <td class="center">{{ 'Nhập' if item.Loai in ('N', 'Nhập') else 'Xuất' }}</td>
+                    <td class="center">{{ item.Ngay.strftime('%d/%m/%Y') if item.Ngay and item.Ngay.strftime is defined else item.Ngay }}</td>
+                    <td class="center">{{ item.MaPhieu }}</td>
+                    <td class="center">{{ item.MAVT }}</td>
+                    <td>{{ item.TENVT }}</td>
+                    <td class="center">{{ item.DVT }}</td>
+                    <td class="num">{{ "{:,}".format(item.SOLUONG or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,.0f}".format(item.DONGIA or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,.0f}".format(item.TriGia or 0).replace(",", ".") }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="group-subtotal-row">
+                    <td colspan="7" class="num">Cộng tháng {{ grp.ThangNam }}:</td>
+                    <td class="num">{{ "{:,}".format(grp.sub_qty).replace(",", ".") }}</td>
+                    <td></td>
+                    <td class="num">{{ "{:,.0f}".format(grp.sub_amount).replace(",", ".") }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="empty-state">Không có dữ liệu.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if grouped_rows %}
+            <tfoot>
+                <tr>
+                    <td colspan="7">TỔNG CỘNG TOÀN KỲ ({{ summary.total_months }} tháng / {{ summary.total_rows }} dòng chi tiết)</td>
+                    <td class="num">{{ "{:,}".format(summary.total_qty or 0).replace(",", ".") }}</td>
+                    <td></td>
+                    <td class="num">{{ "{:,.0f}".format(summary.total_amount or 0).replace(",", ".") }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% elif selected_slug in ('thong-ke-nhap-nam', 'thong-ke-xuat-nam') %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 140px;">Tháng</th>
+                    <th class="num" style="width: 200px;">
+                        Số lượng {{ 'phiếu nhập' if selected_slug == 'thong-ke-nhap-nam' else 'phiếu xuất' }}
+                    </th>
+                    <th class="num" style="width: 220px;">Tổng số lượng vật tư</th>
+                    <th class="num">
+                        Tổng trị giá {{ 'nhập kho' if selected_slug == 'thong-ke-nhap-nam' else 'xuất kho' }} (VNĐ)
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="center">Tháng {{ "%02d"|format(r.Thang) }}/{{ nam }}</td>
+                    <td class="num">{{ "{:,}".format(r.SoPhieu or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(r.TongSoLuong or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,.0f}".format(r.TongTriGia or 0).replace(",", ".") }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td class="center">CỘNG CẢ NĂM {{ nam }}</td>
+                    <td class="num">{{ "{:,}".format(summary.total_vouchers or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,}".format(summary.total_qty or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:,.0f}".format(summary.total_amount or 0).replace(",", ".") }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    {% elif selected_slug == 'tong-hop-nhap-xuat' %}
+    <div class="table-wrap">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 150px;">Ngày</th>
+                    <th class="num">Tiền nhập (VNĐ)</th>
+                    <th class="num" style="width: 130px;">Tỷ lệ nhập</th>
+                    <th class="num">Tiền xuất (VNĐ)</th>
+                    <th class="num" style="width: 130px;">Tỷ lệ xuất</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                {% set pct_nhap = (r.TyLeNhap or 0) * 100 if (r.TyLeNhap or 0) <= 1 else (r.TyLeNhap or 0) %}
+                {% set pct_xuat = (r.TyLeXuat or 0) * 100 if (r.TyLeXuat or 0) <= 1 else (r.TyLeXuat or 0) %}
+                <tr>
+                    <td class="center">{{ r.Ngay.strftime('%d/%m/%Y') if r.Ngay and r.Ngay.strftime is defined else r.Ngay }}</td>
+                    <td class="num">{{ "{:,.0f}".format(r.Nhap or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:.2f}%".format(pct_nhap) }}</td>
+                    <td class="num">{{ "{:,.0f}".format(r.Xuat or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "{:.2f}%".format(pct_xuat) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-state">Không có dữ liệu.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if rows %}
+            <tfoot>
+                <tr>
+                    <td class="center">CỘNG</td>
+                    <td class="num">{{ "{:,.0f}".format(summary.total_nhap or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "100.00%" if (summary.total_nhap or 0) > 0 else "0.00%" }}</td>
+                    <td class="num">{{ "{:,.0f}".format(summary.total_xuat or 0).replace(",", ".") }}</td>
+                    <td class="num">{{ "100.00%" if (summary.total_xuat or 0) > 0 else "0.00%" }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="report-footer">
+        <div class="report-date-place">
+            TP. Hồ Chí Minh, ngày {{ today_day }} tháng {{ today_month }} năm {{ today_year }}
+        </div>
+
+        <div class="report-signatures">
+            <div>
+                <strong>Người lập biểu</strong>
+                <span>(Ký, ghi rõ họ tên)</span>
+                <div class="report-sign-space"></div>
+                <div><strong>{{ current_user.ho_ten }}</strong></div>
+            </div>
+            <div>
+                <strong>Kế toán / Thủ kho</strong>
+                <span>(Ký, ghi rõ họ tên)</span>
+                <div class="report-sign-space"></div>
+            </div>
+            <div>
+                <strong>Thủ trưởng đơn vị</strong>
+                <span>(Ký, đóng dấu)</span>
+                <div class="report-sign-space"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function validateReportParams() {
+        const errEl = document.getElementById('filterParamError');
+        if (errEl) errEl.textContent = '';
+
+        const tuEl = document.getElementById('fTuNgay');
+        const denEl = document.getElementById('fDenNgay');
+        if (tuEl && denEl && tuEl.value && denEl.value && tuEl.value > denEl.value) {
+            if (errEl) {
+                errEl.style.display = 'inline';
+                errEl.textContent = 'Từ ngày phải nhỏ hơn hoặc bằng Đến ngày.';
+            }
+            denEl.focus();
+            return false;
+        }
+
+        const namEl = document.getElementById('fNam');
+        if (namEl) {
+            const yr = Number(namEl.value);
+            if (!Number.isInteger(yr) || yr < 1900 || yr > 9998) {
+                if (errEl) {
+                    errEl.style.display = 'inline';
+                    errEl.textContent = 'Năm thống kê không hợp lệ.';
+                }
+                namEl.focus();
+                return false;
+            }
+        }
+        return true;
+    }
+</script>
+{% endblock %}
